@@ -6,6 +6,10 @@ Luma replaces the cluttered LG Home with one calm screen: your favorite apps, li
 
 Free and open source (MIT). Fork it, change it, ship it.
 
+[![Luma promo video](docs/promo-preview.gif)](https://github.com/funnymataleao/luma-webos-launcher/releases/download/v2.2.160/Luma-promo.mp4)
+
+▶ [Watch the full promo video (1 min)](https://github.com/funnymataleao/luma-webos-launcher/releases/download/v2.2.160/Luma-promo.mp4)
+
 ![Home](docs/screenshots/home.jpg)
 
 ## Features
