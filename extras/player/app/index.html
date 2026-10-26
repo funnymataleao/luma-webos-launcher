@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Luma Player</title>
+    <link rel="stylesheet" href="player.css" />
+  </head>
+  <body>
+    <video id="video" autoplay></video>
+    <div id="caption" class="hidden"></div>
+    <div id="controls">
+      <div id="topShade"></div>
+      <div id="bottomShade"></div>
+      <div id="kicker"><b id="kind">MOVIE</b><i></i><span>MEDIA</span></div>
+      <h1 id="title"></h1>
+      <div id="episode"></div>
+      <div id="clock"></div>
+      <div id="ends"></div>
+      <div class="btn round" id="close" data-icon="close"></div>
+      <div id="nextIn" class="hidden"></div>
+      <div id="bar">
+        <div id="track">
+          <div id="buffered"></div>
+          <div id="filled"></div>
+        </div>
+        <div id="thumb"></div>
+        <div id="chip" class="hidden"></div>
+      </div>
+      <div id="pos"></div>
+      <div id="remain"></div>
+      <div id="row"></div>
+    </div>
+    <div id="tracks" class="hidden">
+      <div id="dim"></div>
+      <div id="panel">
+        <h2 id="panelTitle">Audio and subtitles</h2>
+        <div class="btn round" id="panelClose" data-icon="close"></div>
+        <div id="cols"></div>
+      </div>
+      <div id="badge">
+        <span id="badgeIcon"></span><span id="badgeTime"></span><span>keeps playing</span>
+      </div>
+    </div>
+    <div id="music" class="hidden">
+      <img id="mBg" alt="" />
+      <div id="mVeil"></div>
+      <img id="mCover" alt="" />
+      <div id="mKicker"><b id="mState">LOADING</b><i></i><span>JELLYFIN</span></div>
+      <h1 id="mSong"></h1>
+      <div id="mArtist"></div>
+      <div id="mBar">
+        <div id="mTrack"><div id="mFilled"></div></div>
+        <div id="mThumb"></div>
+      </div>
+      <div id="mPos"></div>
+      <div id="mRemain"></div>
+      <div id="mButtons"></div>
+      <div id="mListTitle"></div>
+      <div id="mList"></div>
+      <div class="btn round" id="mClose"></div>
+    </div>
+    <div id="note" class="hidden">
+      <h2 id="noteTitle">Loading…</h2>
+      <p id="noteSub"></p>
+    </div>
+    <script src="player.js"></script>
+  </body>
+</html>

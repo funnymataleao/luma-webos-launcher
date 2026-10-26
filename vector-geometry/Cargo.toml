@@ -1,0 +1,10 @@
+[package]
+name = "luma-vector-geometry"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+license = "MIT"
+
+[dependencies]
+lyon_tessellation = "1.0"

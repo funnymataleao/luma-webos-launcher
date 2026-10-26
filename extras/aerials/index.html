@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <title>Luma Aerials</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+        color: #fff;
+        font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+      }
+      video {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        background: #050b10;
+      }
+      #veil {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(180deg, #0005 0, transparent 29%, transparent 68%, #0009 100%);
+        opacity: 0.8;
+      }
+      #hud {
+        position: fixed;
+        left: 5%;
+        right: 5%;
+        bottom: 4.5%;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 4%;
+        transition:
+          opacity 0.4s,
+          transform 0.4s;
+        text-shadow: 0 2px 14px #000;
+      }
+      #hud.hidden {
+        opacity: 0;
+        transform: translateY(8px);
+        pointer-events: none;
+      }
+      h1 {
+        font-size: 27px;
+        line-height: 1.2;
+        letter-spacing: -0.035em;
+        font-weight: 600;
+        margin: 0 0 5px;
+      }
+      p {
+        font-size: 16px;
+        color: #ffffffb0;
+        margin: 0;
+        line-height: 1.35;
+      }
+      #actions {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        pointer-events: auto;
+      }
+      button {
+        appearance: none;
+        background: #111a2490;
+        border: 1px solid #ffffff48;
+        color: #fff;
+        border-radius: 999px;
+        min-width: 49px;
+        height: 49px;
+        padding: 0 15px;
+        font-size: 20px;
+        backdrop-filter: blur(16px);
+        cursor: pointer;
+      }
+      button:focus,
+      button:hover {
+        border-color: white;
+        background: #ffffff36;
+        outline: none;
+        box-shadow: 0 0 0 2px #fff5;
+      }
+      #exit {
+        font-size: 15px;
+        letter-spacing: 0.01em;
+        min-width: 72px;
+      }
+      #hint {
+        position: fixed;
+        left: 5%;
+        top: 5%;
+        font-size: 14px;
+        color: #ffffffb5;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      #hint.visible {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <video id="video" autoplay muted playsinline preload="auto"></video>
+    <div id="veil"></div>
+    <div id="hud">
+      <div>
+        <h1 id="name">Aerials</h1>
+        <p id="detail">Видео из коллекции OpenLauncher</p>
+      </div>
+      <div id="actions">
+        <button id="previous" title="Предыдущее видео">‹</button
+        ><button id="pause" title="Пауза">Ⅱ</button
+        ><button id="next" title="Следующее видео">›</button
+        ><button id="exit" title="Вернуться в Luma">Luma ↗</button>
+      </div>
+    </div>
+    <div id="hint" aria-live="polite"></div>
+    <script src="aerials.js"></script>
+    <script>
+      (function () {
+        'use strict';
+        const video = document.getElementById('video'),
+          hud = document.getElementById('hud');
+        const name = document.getElementById('name'),
+          detail = document.getElementById('detail'),
+          hint = document.getElementById('hint');
+        const list = (window.aerials || []).filter(
+          (item) => item && item.u && item.n && /^https:\/\//.test(item.u),
+        );
+        let current = -1,
+          history = [],
+          pool = [],
+          timer = null,
+          failures = 0,
+          changing = false;
+        function show() {
+          hud.classList.remove('hidden');
+          clearTimeout(timer);
+          timer = setTimeout(() => hud.classList.add('hidden'), 5200);
+        }
+        function report(message) {
+          hint.textContent = message;
+          hint.classList.add('visible');
+          setTimeout(() => hint.classList.remove('visible'), 4000);
+        }
+        function nextIndex() {
+          if (!pool.length) pool = list.map((_, i) => i).sort(() => Math.random() - 0.5);
+          return pool.pop();
+        }
+        function play(i, remember = true) {
+          if (!list.length) {
+            report('Видеоролики недоступны');
+            return;
+          }
+          if (remember && current >= 0) history.push(current);
+          current = i;
+          const item = list[i];
+          if (!item) return;
+          changing = true;
+          name.textContent = item.n;
+          detail.textContent = item.s + ' · Luma Aerials';
+          video.pause();
+          video.src = item.u;
+          video.load();
+          const promise = video.play();
+          if (promise && promise.catch)
+            promise.catch(() => {
+              report('Видео не воспроизводится. Попробуй следующее.');
+            });
+          document.getElementById('pause').textContent = 'Ⅱ';
+          show();
+        }
+        function next() {
+          play(nextIndex());
+        }
+        function previous() {
+          if (history.length) play(history.pop(), false);
+          else next();
+        }
+        function pause() {
+          if (video.paused) {
+            video.play().catch(() => report('Не удалось продолжить'));
+            document.getElementById('pause').textContent = 'Ⅱ';
+          } else {
+            video.pause();
+            document.getElementById('pause').textContent = '▶';
+          }
+          show();
+        }
+        function back() {
+          try {
+            const bridge = new PalmServiceBridge();
+            bridge.call(
+              'luna://com.webos.applicationManager/launch',
+              JSON.stringify({ id: 'com.denisefremov.luma' }),
+            );
+          } catch (e) {
+            window.close();
+          }
+        }
+        video.addEventListener('playing', () => {
+          failures = 0;
+          changing = false;
+        });
+        video.addEventListener('ended', next);
+        video.addEventListener('error', () => {
+          changing = false;
+          if (++failures >= 5) {
+            report('Потоки временно недоступны');
+            return;
+          }
+          setTimeout(next, 1500);
+        });
+        document.getElementById('next').onclick = next;
+        document.getElementById('previous').onclick = previous;
+        document.getElementById('pause').onclick = pause;
+        document.getElementById('exit').onclick = back;
+        document.addEventListener('keydown', (ev) => {
+          show();
+          const k = ev.keyCode;
+          if (k === 39 || k === 34) {
+            next();
+            ev.preventDefault();
+          } else if (k === 37 || k === 33) {
+            previous();
+            ev.preventDefault();
+          } else if (k === 13 || k === 32) {
+            pause();
+            ev.preventDefault();
+          } else if (k === 461 || k === 27) {
+            back();
+            ev.preventDefault();
+          }
+        });
+        document.addEventListener('mousemove', show);
+        document.addEventListener('click', show);
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) video.pause();
+          else video.play().catch(() => {});
+        });
+        show();
+        if (list.length) next();
+        else report('Библиотека Aerials не загружена');
+      })();
+    </script>
+  </body>
+</html>

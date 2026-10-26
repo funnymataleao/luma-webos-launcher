@@ -1,0 +1,17 @@
+{
+  "id": "com.denisefremov.luma.aerials",
+  "version": "0.1.1",
+  "vendor": "Luma",
+  "type": "web",
+  "main": "index.html",
+  "title": "Luma Aerials",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "resolution": "1920x1080",
+  "noSplashOnLaunch": true,
+  "spinnerOnLaunch": false,
+  "appCategory": ["entertainment"],
+  "requiredACG": ["application.launcher", "lunabus.query"],
+  "requiredPermissions": ["application.launcher"],
+  "visible": false
+}

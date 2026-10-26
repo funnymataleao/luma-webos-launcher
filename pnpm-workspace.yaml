@@ -1,0 +1,9 @@
+onlyBuiltDependencies:
+  - sharp
+
+# webOS CLI's postinstall only changes bundled config permissions. SSH's optional
+# native accelerators aren't required; its portable JavaScript transport is used.
+ignoredBuiltDependencies:
+  - '@webos-tools/cli'
+  - cpu-features
+  - ssh2

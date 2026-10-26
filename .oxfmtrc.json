@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "singleQuote": true,
+  "printWidth": 100,
+  "trailingComma": "all",
+  "sortPackageJson": false,
+  "overrides": [{ "files": ["tv/*.cjs"], "options": { "trailingComma": "none" } }],
+  "ignorePatterns": [
+    "node_modules/**",
+    "dist/**",
+    ".build/**",
+    "target/**",
+    "pnpm-lock.yaml",
+    "assets/fonts/**",
+    "assets/licenses/**",
+    "assets/ui-icons/**"
+  ]
+}

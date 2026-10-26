@@ -1,0 +1,149 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  build:
+    name: Rust checks, rendering, and native package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    outputs:
+      tag: ${{ steps.package.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - uses: dtolnay/rust-toolchain@1.93.0
+        with:
+          components: rustfmt, clippy
+          targets: armv7-unknown-linux-gnueabi
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: webos-${{ hashFiles('tools/build-webos.sh', 'tools/setup-webos-sdk.mjs', 'tools/webos-runtime.mjs') }}
+      - name: Install desktop and asset dependencies
+        run: |
+          apt_options=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+          sudo apt-get "${apt_options[@]}" update
+          # FontTools recommends large optional scientific Python packages. xauth is needed by xvfb-run.
+          sudo apt-get "${apt_options[@]}" install -y --no-install-recommends \
+            libsdl2-dev pkg-config woff2 python3-fonttools libgl1-mesa-dri xvfb xauth
+      - name: Check formatting
+        run: pnpm format:check
+      - name: Lint Rust and packaging tools
+        run: pnpm check
+      - name: Run unit tests
+        run: pnpm test
+      - name: Generate native assets
+        run: pnpm assets
+      - name: Exercise desktop rendering and mocked weather
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: xvfb-run -a -s '-screen 0 1920x1080x24' pnpm test:smoke
+      - name: Set up the webOS SDK
+        run: pnpm sdk
+      - name: Cross-build and verify the native IPK and Homebrew feed
+        id: package
+        run: |
+          export WEBOS_NDK="$GITHUB_WORKSPACE/.build/toolchain/arm-webos-linux-gnueabi_sdk-buildroot"
+          pnpm build
+          node tools/package.mjs
+          node tools/repository.mjs
+      - name: Upload release files
+        uses: actions/upload-artifact@v7
+        with:
+          name: luma-release
+          if-no-files-found: error
+          path: |
+            dist/*.ipk
+            dist/*.manifest.json
+            dist/sha256sums
+            dist/repo.json
+            dist/description.html
+            dist/player-description.html
+            dist/app-icon-large.png
+      - name: Upload native rendering diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-rendering
+          if-no-files-found: ignore
+          retention-days: 7
+          include-hidden-files: true
+          path: |
+            .build/*.png
+            .build/*-render.json
+
+  release:
+    name: Publish release and Homebrew feed
+    # Normal pushes and pull requests only run checks. Publish by a v* tag
+    # or an explicit manual run from main after reviewing the built artifact.
+    if: >-
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    needs: [build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: luma-release
+          path: release
+      - name: Publish tested release files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            printf 'Invalid release version: %s\n' "$RELEASE_TAG" >&2
+            exit 1
+          fi
+
+          state="$(gh api --paginate "repos/$GH_REPO/releases?per_page=100" \
+            --jq ".[] | select(.tag_name == \"$RELEASE_TAG\") | .draft")"
+          if [ "$state" = false ]; then
+            printf 'Release %s is already published; skipping.\n' "$RELEASE_TAG"
+            exit 0
+          fi
+
+          existing_tag="$(gh api "repos/$GH_REPO/git/matching-refs/tags/$RELEASE_TAG" \
+            --jq ".[] | select(.ref == \"refs/tags/$RELEASE_TAG\") | .ref")"
+          if [ -n "$existing_tag" ]; then
+            tagged_commit="$(gh api "repos/$GH_REPO/commits/$RELEASE_TAG" --jq '.sha')"
+            if [ "$tagged_commit" != "$COMMIT_SHA" ]; then
+              printf 'Tag %s points to another commit; use a new app version.\n' "$RELEASE_TAG" >&2
+              exit 1
+            fi
+          fi
+
+          files=(release/*.ipk release/*.manifest.json release/sha256sums release/repo.json release/description.html release/player-description.html release/app-icon-large.png)
+          if [ "$state" = true ]; then
+            gh release upload "$RELEASE_TAG" "${files[@]}" --clobber
+            gh release edit "$RELEASE_TAG" --draft=false
+          else
+            gh release create "$RELEASE_TAG" "${files[@]}" \
+              --target "$COMMIT_SHA" \
+              --generate-notes \
+              --title "Luma ${RELEASE_TAG#v}"
+          fi

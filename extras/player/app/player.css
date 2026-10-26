@@ -1,0 +1,729 @@
+/* Luma player: approved mockups Player / PlayerTracks. One padding of 88,
+   right edge at 1832, round buttons 84 high, two states (grey / accent). */
+@font-face {
+  font-family: LumaHeading;
+  src: url(fonts/heading.ttf);
+  font-weight: 200 1000;
+}
+@font-face {
+  font-family: LumaBody;
+  src: url(fonts/body.ttf);
+  font-weight: 200 800;
+}
+
+:root {
+  --accent-a: #7ee8a5;
+  --accent-b: #4fb8ff;
+  --accent-mid: #66d0d2;
+  --accent-ink: #121519;
+  --accent-fill: linear-gradient(135deg, var(--accent-a), var(--accent-b));
+  --panel: rgba(17, 19, 24, 0.88);
+}
+html,
+body {
+  margin: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+  font-family: LumaBody, sans-serif;
+  -webkit-user-select: none;
+  cursor: default;
+}
+video {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 1920px;
+  height: 1080px;
+  background: #000;
+  object-fit: contain;
+}
+.hidden {
+  display: none !important;
+}
+
+/* Loading and errors. */
+#note {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(7, 9, 14, 0.6);
+}
+#note p {
+  margin-top: 16px !important;
+}
+#note.error {
+  background: rgba(7, 9, 14, 0.75);
+}
+#note h2 {
+  margin: 0;
+  font:
+    800 44px/1.1 LumaHeading,
+    sans-serif;
+}
+#note p {
+  margin: 0;
+  font:
+    500 25px LumaBody,
+    sans-serif;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Subtitles. */
+#caption {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 110px;
+  max-width: 1380px;
+  padding: 14px 28px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.6);
+  text-align: center;
+  font:
+    700 38px/1.25 LumaBody,
+    sans-serif;
+  white-space: pre-line;
+  transition: bottom 0.25s ease;
+}
+body.controls #caption {
+  bottom: 310px;
+}
+
+/* Controls fade as one layer; the scrims stay put under them. */
+#controls {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+body.controls #controls {
+  opacity: 1;
+  pointer-events: auto;
+}
+#topShade {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 281px;
+  background: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
+}
+#bottomShade {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1920px;
+  height: 519px;
+  background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.85));
+}
+
+#kicker {
+  position: absolute;
+  left: 88px;
+  top: 72px;
+  font:
+    600 18px LumaBody,
+    sans-serif;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.6);
+  display: flex;
+  align-items: center;
+}
+#kicker b {
+  color: var(--accent-mid);
+  font-weight: 600;
+}
+#kicker i {
+  margin: 0 14px;
+  width: 5px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.5);
+}
+#title {
+  position: absolute;
+  left: 88px;
+  top: 105px;
+  width: 1300px;
+  margin: 0;
+  font:
+    800 52px/1.05 LumaHeading,
+    sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#title.long {
+  font-size: 42px;
+}
+#episode {
+  position: absolute;
+  left: 88px;
+  top: 170px;
+  width: 1300px;
+  font:
+    600 25px LumaBody,
+    sans-serif;
+  color: rgba(255, 255, 255, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#clock {
+  position: absolute;
+  right: 88px;
+  top: 72px;
+  font:
+    700 44px LumaBody,
+    sans-serif;
+  text-align: right;
+}
+#ends {
+  position: absolute;
+  right: 88px;
+  top: 134px;
+  font:
+    500 22px LumaBody,
+    sans-serif;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: right;
+}
+
+/* Two-state round controls. */
+.btn {
+  position: absolute;
+  height: 84px;
+  border-radius: 42px;
+  box-sizing: border-box;
+  padding: 0 40px;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  font:
+    600 25px LumaBody,
+    sans-serif;
+  color: #fff;
+}
+.btn svg {
+  width: 26px;
+  height: 26px;
+  flex: none;
+}
+.btn > * + * {
+  margin-left: 12px;
+}
+.btn.round {
+  width: 60px;
+  height: 60px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 30px;
+}
+.btn.round svg {
+  width: 24px;
+  height: 24px;
+}
+.focus {
+  background: var(--accent-fill);
+  border-color: transparent;
+  color: var(--accent-ink);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+}
+#close {
+  right: 88px;
+  top: 170px;
+}
+
+/* Timeline. */
+#bar {
+  position: absolute;
+  left: 88px;
+  top: 820px;
+  width: 1744px;
+  height: 62px;
+}
+#track {
+  position: absolute;
+  left: 0;
+  top: 26px;
+  width: 1744px;
+  height: 10px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.25);
+  overflow: hidden;
+}
+#buffered {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.4);
+}
+#filled {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--accent-a), var(--accent-mid));
+}
+#thumb {
+  position: absolute;
+  top: 31px;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border-radius: 50%;
+  background: var(--accent-mid);
+  box-shadow:
+    0 0 0 6px rgba(255, 255, 255, 0.18),
+    0 6px 18px rgba(0, 0, 0, 0.5);
+  transition:
+    width 0.12s,
+    height 0.12s,
+    margin 0.12s;
+}
+#bar.focused #thumb {
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  box-shadow:
+    0 0 0 6px rgba(255, 255, 255, 0.25),
+    0 6px 18px rgba(0, 0, 0, 0.5);
+}
+#chip {
+  position: absolute;
+  top: -28px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.7);
+  font:
+    700 23px/38px LumaBody,
+    sans-serif;
+  transform: translateX(-50%);
+}
+#pos {
+  position: absolute;
+  left: 88px;
+  top: 874px;
+  font:
+    600 25px LumaBody,
+    sans-serif;
+}
+#remain {
+  position: absolute;
+  right: 88px;
+  top: 874px;
+  font:
+    600 25px LumaBody,
+    sans-serif;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: right;
+}
+#nextIn {
+  position: absolute;
+  right: 88px;
+  top: 792px;
+  font:
+    700 23px LumaBody,
+    sans-serif;
+}
+
+#row .btn {
+  top: 928px;
+}
+
+/* Audio / subtitles / quality panel. */
+#dim {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+#panel {
+  position: absolute;
+  left: 400px;
+  top: 96px;
+  width: 1120px;
+  height: 760px;
+  box-sizing: border-box;
+  border-radius: 44px;
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.6);
+}
+#panel h2 {
+  position: absolute;
+  left: 48px;
+  top: 40px;
+  margin: 0;
+  font:
+    800 44px/60px LumaHeading,
+    sans-serif;
+}
+#panelClose {
+  right: 48px;
+  top: 40px;
+}
+.col {
+  position: absolute;
+  top: 130px;
+}
+.col h3 {
+  margin: 0 0 10px 24px;
+  height: 23px;
+  font:
+    600 18px LumaBody,
+    sans-serif;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.55);
+}
+.opt {
+  position: relative;
+  height: 68px;
+  border-radius: 18px;
+  padding: 0 64px 0 24px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  font:
+    500 26px LumaBody,
+    sans-serif;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.opt.focus {
+  font-weight: 700;
+  color: var(--accent-ink);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+.opt.focus svg {
+  color: var(--accent-ink);
+}
+.opt svg {
+  position: absolute;
+  right: 24px;
+  top: 21px;
+  width: 26px;
+  height: 26px;
+  color: var(--accent-mid);
+}
+#badge {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 88px;
+  height: 84px;
+  border-radius: 42px;
+  padding: 0 40px;
+  display: flex;
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+#badge svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+#badge > * + * {
+  margin-left: 14px;
+}
+#badgeTime {
+  font:
+    600 25px LumaBody,
+    sans-serif;
+}
+#badge span:last-child {
+  font:
+    500 22px LumaBody,
+    sans-serif;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Music: album "now playing" (mockup "Музыка: альбом"). Cover and song on the
+   left, the album's songs on the right; the blurred cover fills the screen. */
+body.music video,
+body.music #controls,
+body.music #caption {
+  display: none !important;
+}
+#music {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: #050607;
+}
+#mBg {
+  position: absolute;
+  left: -80px;
+  top: -80px;
+  width: 2080px;
+  height: 1240px;
+  object-fit: cover;
+  filter: blur(60px) saturate(1.2);
+  opacity: 0.55;
+}
+#mVeil {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  background: rgba(10, 11, 14, 0.6);
+}
+#mCover {
+  position: absolute;
+  left: 140px;
+  top: 110px;
+  width: 520px;
+  height: 520px;
+  border-radius: 26px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+}
+#mKicker {
+  position: absolute;
+  left: 140px;
+  top: 668px;
+  font:
+    600 18px LumaBody,
+    sans-serif;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.55);
+  display: flex;
+  align-items: center;
+}
+#mKicker b {
+  color: var(--accent-mid);
+  font-weight: 600;
+}
+#mKicker b.error {
+  color: #ff6961;
+}
+#mBg.empty {
+  display: none;
+}
+#mCover.empty {
+  box-shadow: none;
+}
+#mKicker i {
+  margin: 0 14px;
+  width: 5px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.4);
+}
+#mSong {
+  position: absolute;
+  left: 140px;
+  top: 702px;
+  width: 600px;
+  margin: 0;
+  font:
+    800 52px/1.08 LumaHeading,
+    sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#mArtist {
+  position: absolute;
+  left: 140px;
+  top: 768px;
+  width: 600px;
+  font:
+    600 27px LumaBody,
+    sans-serif;
+  color: rgba(255, 255, 255, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#mBar {
+  position: absolute;
+  left: 140px;
+  top: 818px;
+  width: 600px;
+  height: 44px;
+}
+#mTrack {
+  position: absolute;
+  left: 0;
+  top: 18px;
+  width: 600px;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.25);
+  overflow: hidden;
+}
+#mFilled {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--accent-a), var(--accent-mid));
+}
+#mThumb {
+  position: absolute;
+  top: 22px;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border-radius: 50%;
+  background: var(--accent-mid);
+  box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.18);
+  transition:
+    width 0.12s,
+    height 0.12s,
+    margin 0.12s;
+}
+#mBar.focus {
+  background: none;
+  box-shadow: none;
+}
+#mBar.focus #mThumb {
+  width: 32px;
+  height: 32px;
+  margin: -16px 0 0 -16px;
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.3);
+}
+#mPos,
+#mRemain {
+  position: absolute;
+  top: 864px;
+  font:
+    600 23px LumaBody,
+    sans-serif;
+  color: rgba(255, 255, 255, 0.75);
+}
+#mPos {
+  left: 140px;
+}
+#mRemain {
+  left: 140px;
+  width: 600px;
+  text-align: right;
+}
+#mButtons .btn {
+  top: 924px;
+}
+#mButtons .btn.round {
+  width: 84px;
+  height: 84px;
+  border-radius: 42px;
+}
+#mButtons .btn.round svg {
+  width: 30px;
+  height: 30px;
+}
+#mButtons .btn.on:not(.focus) {
+  border: 2px solid var(--accent-mid);
+  color: var(--accent-mid);
+}
+#mListTitle {
+  position: absolute;
+  left: 844px;
+  top: 120px;
+  font:
+    600 18px LumaBody,
+    sans-serif;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.55);
+}
+#mList {
+  position: absolute;
+  left: 820px;
+  top: 156px;
+  width: 960px;
+  height: 840px;
+  overflow: hidden;
+}
+.song {
+  position: absolute;
+  left: 0;
+  width: 960px;
+  height: 70px;
+  box-sizing: border-box;
+  border-radius: 18px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  font:
+    500 25px LumaBody,
+    sans-serif;
+  color: rgba(255, 255, 255, 0.88);
+}
+.song .n {
+  width: 56px;
+  flex: none;
+  color: rgba(255, 255, 255, 0.45);
+  font-variant-numeric: tabular-nums;
+}
+.song .t {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.song .d {
+  width: 100px;
+  flex: none;
+  text-align: right;
+  font-size: 22px;
+  color: rgba(255, 255, 255, 0.45);
+  font-variant-numeric: tabular-nums;
+}
+.song.playing:not(.focus) {
+  box-shadow: inset 0 0 0 2px var(--accent-mid);
+}
+.song.playing .n svg {
+  width: 24px;
+  height: 24px;
+  color: var(--accent-mid);
+  display: block;
+}
+.song.focus {
+  font-weight: 600;
+  color: var(--accent-ink);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+.song.focus .n,
+.song.focus .d,
+.song.focus .n svg {
+  color: var(--accent-ink);
+}
+#mClose {
+  right: 88px;
+  top: 40px;
+}

@@ -1,0 +1,15 @@
+{
+  "id": "com.denisefremov.luma.player",
+  "version": "0.0.11",
+  "vendor": "Luma",
+  "type": "web",
+  "main": "index.html",
+  "title": "Luma Player",
+  "icon": "icon.png",
+  "resolution": "1920x1080",
+  "transparent": false,
+  "visible": false,
+  "handlesRelaunch": true,
+  "disableBackHistoryAPI": true,
+  "requiredACG": []
+}

@@ -1,0 +1,13 @@
+[package]
+name = "luma-vector-assets"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+license = "MIT"
+
+[dependencies]
+luma-vector-geometry = { path = "../../vector-geometry" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+usvg = { version = "0.45", default-features = false }
