@@ -2489,6 +2489,10 @@ fn run() -> Result<(), String> {
     let mut aerial_player = webos.then(aerial_video::Player::new);
     let mut running = true;
     let mut queued_event = None;
+    // SDL turns text input on while the video subsystem starts. On webOS 4 the
+    // remote then sends TEXTINPUT events that are not UTF-8, and rust-sdl2
+    // panics on those. Start from the state this loop assumes: off.
+    video.text_input().stop();
     let mut text_active = false;
     let mut initial_focus = options.script.is_empty();
     let scripted_input = !options.script.is_empty();
