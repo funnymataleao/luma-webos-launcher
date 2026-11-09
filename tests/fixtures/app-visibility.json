@@ -15,7 +15,7 @@
   { "app": { "id": "com.lge.app.visible", "visible": true }, "include": true },
   { "app": { "id": "com.lge.app.unlisted" }, "include": false },
   { "app": { "id": "com.webos.app.livetv", "visible": false }, "include": true },
-  { "app": { "id": "com.denisefremov.luma", "visible": true }, "include": false },
+  { "app": { "id": "com.archbtw.luma", "visible": true }, "include": false },
   { "app": { "id": "com.luma.native", "visible": true }, "include": false },
   { "app": { "id": "com.luma.launcher", "visible": true }, "include": false },
   { "app": { "id": "com.luma.launcher.native", "visible": true }, "include": false },

@@ -11,12 +11,12 @@ const manifest = JSON.parse(await fs.readFile(path.join(root, 'appinfo.json'), '
 const project = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
 if (
   project.version !== manifest.version ||
-  manifest.id !== 'com.denisefremov.luma' ||
+  manifest.id !== 'com.archbtw.luma' ||
   manifest.type !== 'native' ||
   manifest.main !== 'luma'
 ) {
   throw new Error(
-    'Native package metadata must use com.denisefremov.luma, main luma, and synchronized versions.',
+    'Native package metadata must use com.archbtw.luma, main luma, and synchronized versions.',
   );
 }
 const binary = path.join(root, 'target/armv7-unknown-linux-gnueabi/release/luma');

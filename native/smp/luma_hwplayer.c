@@ -48,7 +48,7 @@ void *luma_hw_open(const char *app_id,int width,int height,const char *codec) {
     if(!app_id || width<=0 || height<=0) return NULL;
     LumaHW *ctx=calloc(1,sizeof(*ctx));if(!ctx)return NULL;
     ctx->width=width;ctx->height=height;
-    ctx->log=fopen("/media/developer/com.denisefremov.luma/luma-hardware.log","a");
+    ctx->log=fopen("/media/developer/com.archbtw.luma/luma-hardware.log","a");
     ctx->screen_w=1920;ctx->screen_h=1080;
     SDL_webOSGetPanelResolution(&ctx->screen_w,&ctx->screen_h);
     const char *id=SDL_webOSCreateExportedWindow(SDL_WEBOS_EXPORTED_WINDOW_TYPE_VIDEO);

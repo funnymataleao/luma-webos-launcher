@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 const root = path.resolve(import.meta.dirname, '..');
 const directory = path.join(root, 'extras/player/app');
 const manifest = JSON.parse(await fs.readFile(path.join(directory, 'appinfo.json'), 'utf8'));
-if (manifest.id !== 'com.denisefremov.luma.player' || manifest.type !== 'web') {
+if (manifest.id !== 'com.archbtw.luma.player' || manifest.type !== 'web') {
   throw new Error('Unexpected Luma Player identity or app type');
 }
 const output = path.join(root, 'dist');

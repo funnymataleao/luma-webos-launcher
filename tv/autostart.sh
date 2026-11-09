@@ -1,9 +1,9 @@
 #!/bin/sh
 # Luma's optional cold-boot hook. Installed only when explicitly requested:
-#   sh /media/developer/apps/usr/palm/applications/com.denisefremov.luma/autostart.sh enable
-#   sh /media/developer/apps/usr/palm/applications/com.denisefremov.luma/autostart.sh disable
+#   sh /media/developer/apps/usr/palm/applications/com.archbtw.luma/autostart.sh enable
+#   sh /media/developer/apps/usr/palm/applications/com.archbtw.luma/autostart.sh disable
 # Requires a rooted TV with Homebrew Channel, which runs /var/lib/webosbrew/init.d at boot.
-APP_ID=com.denisefremov.luma
+APP_ID=com.archbtw.luma
 APP_DIR=/media/developer/apps/usr/palm/applications/$APP_ID
 HOOK=/var/lib/webosbrew/init.d/65-luma
 case "${1:-}" in

@@ -14,20 +14,20 @@ if [ -f "$pidfile" ] && kill -0 "$(cat "$pidfile")" 2>/dev/null; then
   exit 0
 fi
 echo $$ > "$pidfile"
-app=/media/developer/apps/usr/palm/applications/com.denisefremov.luma/appinfo.json
+app=/media/developer/apps/usr/palm/applications/com.archbtw.luma/appinfo.json
 
 open_luma() {
   [ -e /var/lib/webosbrew/luma-autostart-disabled ] && return
   [ -f "$app" ] || return
   for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
     # Launch first: right after resume the foreground report can be stale.
-    reply=$(luna-send -n 1 luna://com.webos.service.applicationManager/launch '{"id":"com.denisefremov.luma"}')
+    reply=$(luna-send -n 1 luna://com.webos.service.applicationManager/launch '{"id":"com.archbtw.luma"}')
     echo "$(date '+%T') wake attempt $attempt: $reply"
     sleep 1
     active=$(luna-send -n 1 luna://com.webos.applicationManager/getForegroundAppInfo '{}')
     echo "$(date '+%T') foreground: $active"
     case "$active" in
-      *'"appId":"com.denisefremov.luma"'*) [ "$attempt" -ge 3 ] && return ;;
+      *'"appId":"com.archbtw.luma"'*) [ "$attempt" -ge 3 ] && return ;;
     esac
   done
 }

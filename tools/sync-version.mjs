@@ -42,12 +42,12 @@ export async function syncVersions(directory = root, { check = false } = {}) {
     throw new Error('package.json must have a numeric major.minor.patch release version.');
   }
 
-  const filenames = ['appinfo.json', 'Cargo.toml', 'Cargo.lock', 'readme.md'];
+  const filenames = ['appinfo.json', 'Cargo.toml', 'Cargo.lock', 'README.md'];
   const sources = await Promise.all(filenames.map(read));
   JSON.parse(sources[0]);
-  const ipkPattern = /\bcom\.denisefremov\.luma_\d+\.\d+\.\d+_arm\.ipk\b/g;
+  const ipkPattern = /\bcom\.archbtw\.luma_\d+\.\d+\.\d+_arm\.ipk\b/g;
   if (![...sources[3].matchAll(ipkPattern)].length) {
-    throw new Error('Expected versioned Luma IPK examples in readme.md.');
+    throw new Error('Expected versioned Luma IPK examples in README.md.');
   }
   const updated = [
     replaceVersion(
@@ -58,7 +58,7 @@ export async function syncVersions(directory = root, { check = false } = {}) {
     ),
     updateTomlVersion(sources[1], '[package]', version, 'Cargo.toml'),
     updateTomlVersion(sources[2], '[[package]]', version, 'Cargo.lock'),
-    sources[3].replace(ipkPattern, `com.denisefremov.luma_${version}_arm.ipk`),
+    sources[3].replace(ipkPattern, `com.archbtw.luma_${version}_arm.ipk`),
   ];
   const changed = filenames.filter((_filename, index) => sources[index] !== updated[index]);
   if (check && changed.length) {

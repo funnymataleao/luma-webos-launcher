@@ -2002,8 +2002,7 @@ impl Renderer {
         // Never incur synchronization stalls in a normal TV session.
         let trace_gl = self.prof_finish
             || (cfg!(feature = "webos")
-                && std::path::Path::new("/media/developer/com.denisefremov.luma/profile-gl")
-                    .exists());
+                && std::path::Path::new("/media/developer/com.archbtw.luma/profile-gl").exists());
         self.stats.cached_effect = hybrid && !refresh;
         let mut original_fbo = 0;
         self.stats.effect_render_ms = 0.;

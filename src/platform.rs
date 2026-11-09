@@ -8,7 +8,7 @@ use crate::{
 use serde_json::{Value, json};
 use std::{collections::HashSet, sync::mpsc, thread};
 
-pub const APP_ID: &str = "com.denisefremov.luma";
+pub const APP_ID: &str = "com.archbtw.luma";
 pub const HOME_ID: &str = "com.webos.app.home";
 
 pub fn redirect_to_home() -> Result<bool, String> {
@@ -175,7 +175,7 @@ impl Platform {
 }
 
 /// Luma's own player: a small web app around the TV's web video element.
-pub const WEB_PLAYER_ID: &str = "com.denisefremov.luma.player";
+pub const WEB_PLAYER_ID: &str = "com.archbtw.luma.player";
 pub const INSTALL_PLAYER_MESSAGE: &str = "Install Luma Player from Homebrew Channel";
 
 // webOS versions use slightly different texts for unknown application IDs.
@@ -377,7 +377,7 @@ fn root_features(change: Option<RootSet>) -> Result<Option<RootStatus>, String> 
     };
     // Gamepad watcher for a double Start+Select during a stream (pad_watch).
     // Restarted when Luma was updated, so it always runs the current binary.
-    let bin = "/media/developer/apps/usr/palm/applications/com.denisefremov.luma/luma";
+    let bin = "/media/developer/apps/usr/palm/applications/com.archbtw.luma/luma";
     let pid = crate::pad_watch::PIDFILE;
     let pad = format!(
         "p=$(cat {pid} 2>/dev/null); if [ -n \"$p\" ] && kill -0 \"$p\" 2>/dev/null; then \
@@ -516,7 +516,7 @@ pub fn normalize_apps(raw: &Value) -> Result<Vec<App>, String> {
         let live = id == "com.webos.app.livetv";
         let visible = entry.get("visible");
         if id == APP_ID
-            || id == "com.denisefremov.luma"
+            || id == "com.archbtw.luma"
             || id == "com.luma.native"
             || id == "com.luma.launcher"
             || id == "com.luma.launcher.native"

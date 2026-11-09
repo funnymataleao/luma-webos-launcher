@@ -68,7 +68,7 @@ struct Cinema {
  }
  // Diagnostic trail next to Luma's other logs. Never receives URLs.
  static void note(const char *line){
-  if(FILE *f=fopen("/media/developer/com.denisefremov.luma/luma-cinema.log","a")){fprintf(f,"native %s\n",line);fclose(f);}
+  if(FILE *f=fopen("/media/developer/com.archbtw.luma/luma-cinema.log","a")){fprintf(f,"native %s\n",line);fclose(f);}
  }
  // How the video surface is placed; a file switch lets us compare on the TV
  // without a rebuild: both (default), crop, set (2.2.81 behaviour), none.
@@ -76,7 +76,7 @@ struct Cinema {
  // sources showed); setting the exported window as well shows every size.
  static std::string mode(){
   std::string m="both";
-  if(FILE *f=fopen("/media/developer/com.denisefremov.luma/cinema-window","r")){
+  if(FILE *f=fopen("/media/developer/com.archbtw.luma/cinema-window","r")){
    char buf[16]={0};
    if(fgets(buf,sizeof buf,f)){m=buf;while(!m.empty()&&(m.back()=='\n'||m.back()==' '))m.pop_back();}
    fclose(f);
@@ -127,7 +127,7 @@ struct Cinema {
    if(id)window=id;
   }
   place();
-  std::string payload="{\"option\":{\"appId\":\"com.denisefremov.luma\"";
+  std::string payload="{\"option\":{\"appId\":\"com.archbtw.luma\"";
   if(!window.empty())payload+=",\"windowId\":\""+window+"\"";
   payload+="}}";
   state.store(1);position.store(0);duration.store(0);base_position=0;

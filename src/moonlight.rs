@@ -1143,8 +1143,8 @@ fn recover_existing_pair(
 fn log_phase(stage: usize, message: &str) {
     // Only non-sensitive stage numbers, HTTP codes and field lengths belong here.
     // NEVER write keys, PIN, certificates, pairing query strings or XML values.
-    let root = if Path::new("/media/developer/com.denisefremov.luma").exists() {
-        PathBuf::from("/media/developer/com.denisefremov.luma")
+    let root = if Path::new("/media/developer/com.archbtw.luma").exists() {
+        PathBuf::from("/media/developer/com.archbtw.luma")
     } else {
         std::env::temp_dir()
     };

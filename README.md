@@ -33,7 +33,7 @@ Free and open source (MIT). Fork it, change it, ship it.
 
 - Sign in with a code or a QR code on your phone: no typing with the remote.
 - Movie and series pages with backdrop, cast, seasons, episodes and "More like this".
-- A built-in HTML5 player (`com.denisefremov.luma.player`) with audio and subtitle track selection, quality and seek previews. Playback progress syncs back to your server.
+- A built-in HTML5 player (`com.archbtw.luma.player`) with audio and subtitle track selection, quality and seek previews. Playback progress syncs back to your server.
 - Music: albums, songs and a now-playing screen.
 - Plex support is new and less tested than Jellyfin.
 
@@ -159,14 +159,14 @@ Opens Luma 25 seconds after a full cold boot, as a regular app (the Home button 
 Run in the TV's root SSH shell:
 
 ```sh
-sh /media/developer/apps/usr/palm/applications/com.denisefremov.luma/autostart.sh enable
+sh /media/developer/apps/usr/palm/applications/com.archbtw.luma/autostart.sh enable
 ```
 
 Check or undo it, and disable it before uninstalling Luma:
 
 ```sh
-sh /media/developer/apps/usr/palm/applications/com.denisefremov.luma/autostart.sh status
-sh /media/developer/apps/usr/palm/applications/com.denisefremov.luma/autostart.sh disable
+sh /media/developer/apps/usr/palm/applications/com.archbtw.luma/autostart.sh status
+sh /media/developer/apps/usr/palm/applications/com.archbtw.luma/autostart.sh disable
 ```
 
 It installs `/var/lib/webosbrew/init.d/65-luma`, which Homebrew Channel runs at boot, and logs to
@@ -187,9 +187,9 @@ Then install **Luma** and **Luma Player** from the list. The companion player is
 
 ### Manual (IPK)
 
-Download `com.denisefremov.luma_2.2.160_arm.ipk` from [Releases](../../releases/latest) and install it with
+Download `com.archbtw.luma_2.3.0_arm.ipk` from [Releases](../../releases/latest) and install it with
 [webOS Dev Manager](https://github.com/webosbrew/dev-manager-desktop) or `ares-install`.
-To play Jellyfin and Plex videos, also install `com.denisefremov.luma.player_0.0.11_all.ipk` from the same release.
+To play Jellyfin and Plex videos, also install `com.archbtw.luma.player_0.0.11_all.ipk` from the same release.
 
 To use Moonlight, install Moonlight for webOS and pair it with your PC first, then open Luma.
 

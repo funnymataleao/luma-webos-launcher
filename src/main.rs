@@ -826,8 +826,8 @@ fn compose(
 fn jellyfin_service() -> &'static jellyfin::Service {
     static SERVICE: std::sync::OnceLock<jellyfin::Service> = std::sync::OnceLock::new();
     SERVICE.get_or_init(|| {
-        let cache = if std::path::Path::new("/media/developer/com.denisefremov.luma").exists() {
-            std::path::PathBuf::from("/media/developer/com.denisefremov.luma/posters")
+        let cache = if std::path::Path::new("/media/developer/com.archbtw.luma").exists() {
+            std::path::PathBuf::from("/media/developer/com.archbtw.luma/posters")
         } else {
             std::env::temp_dir().join("luma-posters")
         };
@@ -1095,8 +1095,8 @@ fn jellyfin_tick(state: &mut State, preferences_path: &std::path::Path, platform
 fn plex_service() -> &'static plex::Service {
     static SERVICE: std::sync::OnceLock<plex::Service> = std::sync::OnceLock::new();
     SERVICE.get_or_init(|| {
-        let cache = if std::path::Path::new("/media/developer/com.denisefremov.luma").exists() {
-            std::path::PathBuf::from("/media/developer/com.denisefremov.luma/posters")
+        let cache = if std::path::Path::new("/media/developer/com.archbtw.luma").exists() {
+            std::path::PathBuf::from("/media/developer/com.archbtw.luma/posters")
         } else {
             std::env::temp_dir().join("luma-posters")
         };
@@ -1192,8 +1192,8 @@ fn jellyfin_device_id(state: &mut State) -> String {
 fn steam_service() -> &'static steam::Service {
     static SERVICE: std::sync::OnceLock<steam::Service> = std::sync::OnceLock::new();
     SERVICE.get_or_init(|| {
-        let cache = if std::path::Path::new("/media/developer/com.denisefremov.luma").exists() {
-            std::path::PathBuf::from("/media/developer/com.denisefremov.luma/moonlight-cache")
+        let cache = if std::path::Path::new("/media/developer/com.archbtw.luma").exists() {
+            std::path::PathBuf::from("/media/developer/com.archbtw.luma/moonlight-cache")
         } else {
             std::env::temp_dir().join("luma-moonlight-cache")
         };
@@ -1203,8 +1203,8 @@ fn steam_service() -> &'static steam::Service {
 fn moonlight_service() -> &'static moonlight::Service {
     static SERVICE: std::sync::OnceLock<moonlight::Service> = std::sync::OnceLock::new();
     SERVICE.get_or_init(|| {
-        let cache = if std::path::Path::new("/media/developer/com.denisefremov.luma").exists() {
-            std::path::PathBuf::from("/media/developer/com.denisefremov.luma/moonlight-cache")
+        let cache = if std::path::Path::new("/media/developer/com.archbtw.luma").exists() {
+            std::path::PathBuf::from("/media/developer/com.archbtw.luma/moonlight-cache")
         } else {
             std::env::temp_dir().join("luma-moonlight-cache")
         };
@@ -1473,7 +1473,7 @@ fn open_player(state: &mut State, platform: &Platform, request: player::OpenRequ
     state.dirty = true;
 }
 
-/// Launch parameters for com.denisefremov.luma.player. Holds signed URLs and the token;
+/// Launch parameters for com.archbtw.luma.player. Holds signed URLs and the token;
 /// never logged.
 fn web_player_params(state: &State, request: &player::OpenRequest) -> serde_json::Value {
     let (a, b) = state.accent_colors();
@@ -2240,7 +2240,7 @@ fn run() -> Result<(), String> {
     // TV diagnosis without the remote: a URL dropped into this file opens
     // the Luma player once at start (the file is consumed).
     if webos {
-        let path = "/media/developer/com.denisefremov.luma/cinema-test-url";
+        let path = "/media/developer/com.archbtw.luma/cinema-test-url";
         if let Ok(url) = std::fs::read_to_string(path) {
             let _ = std::fs::remove_file(path);
             let mut request = player::OpenRequest::preview(player::Source::Movie);
@@ -2403,7 +2403,7 @@ fn run() -> Result<(), String> {
     eprintln!("Luma GL: {samples} samples, {alpha_bits} alpha bits");
     if webos {
         let _ = std::fs::write(
-            "/media/developer/com.denisefremov.luma/luma-egl.txt",
+            "/media/developer/com.archbtw.luma/luma-egl.txt",
             format!(
                 "window={}x{} samples={} alpha_bits={}\n",
                 requested.width, requested.height, samples, alpha_bits
@@ -2587,7 +2587,7 @@ fn run() -> Result<(), String> {
             if let Ok(mut f) = std::fs::OpenOptions::new()
                 .create(true)
                 .append(true)
-                .open("/media/developer/com.denisefremov.luma/luma-video-state.txt")
+                .open("/media/developer/com.archbtw.luma/luma-video-state.txt")
             {
                 let _ = f.write_all(line.as_bytes());
             }
@@ -2672,7 +2672,7 @@ fn run() -> Result<(), String> {
                 state.dirty = true;
                 if player.frame_count() <= 3 || player.frame_count() % 300 == 0 {
                     eprintln!("Luma video GPU frame #{} uploaded", player.frame_count());
-                    let path = "/media/developer/com.denisefremov.luma/luma-gpu-frames.txt";
+                    let path = "/media/developer/com.archbtw.luma/luma-gpu-frames.txt";
                     use std::io::Write;
                     if let Ok(mut file) = std::fs::OpenOptions::new()
                         .create(true)

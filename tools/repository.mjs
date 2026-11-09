@@ -28,7 +28,7 @@ if (!shortDescription) throw new Error('appinfo.json must provide a non-empty ap
 const player = JSON.parse(
   await fs.readFile(path.join(root, 'extras/player/app/appinfo.json'), 'utf8'),
 );
-if (player.id !== 'com.denisefremov.luma.player' || player.type !== 'web') {
+if (player.id !== 'com.archbtw.luma.player' || player.type !== 'web') {
   throw new Error('Companion player manifest does not match the public identity.');
 }
 const playerFilename = `${player.id}_${player.version}_all.ipk`;

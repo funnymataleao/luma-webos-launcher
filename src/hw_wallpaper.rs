@@ -60,7 +60,7 @@ impl H264Tuning {
     fn load() -> Self {
         let mut tuning = Self::default();
         let Ok(content) =
-            std::fs::read_to_string("/media/developer/com.denisefremov.luma/video-tuning.json")
+            std::fs::read_to_string("/media/developer/com.archbtw.luma/video-tuning.json")
         else {
             return tuning;
         };
@@ -93,7 +93,7 @@ pub fn log_transition_event(index: usize, event: &str) {
     let Ok(mut file) = OpenOptions::new()
         .create(true)
         .append(true)
-        .open("/media/developer/com.denisefremov.luma/luma-video-transitions.log")
+        .open("/media/developer/com.archbtw.luma/luma-video-transitions.log")
     else {
         return;
     };
@@ -321,7 +321,7 @@ impl Player {
         let log = OpenOptions::new()
             .create(true)
             .append(true)
-            .open("/media/developer/com.denisefremov.luma/luma-demux.log")
+            .open("/media/developer/com.archbtw.luma/luma-demux.log")
             .ok();
         let mut cmd = Command::new(demux);
         cmd.arg(if entry.is_hevc() { "h265" } else { "h264" })
@@ -412,7 +412,7 @@ impl Player {
         if !playable_source(&entry.url) {
             return Err("Invalid streaming URL".into());
         }
-        let app = CString::new("com.denisefremov.luma").unwrap();
+        let app = CString::new("com.archbtw.luma").unwrap();
         let codec = if entry.is_hevc() { "H265" } else { "H264" };
         let codec_c = CString::new(codec).unwrap();
         let tuning = if codec == "H264" {

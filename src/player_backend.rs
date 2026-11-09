@@ -358,7 +358,7 @@ impl Backend {
     const MEDIA: &'static str = "luna://com.webos.media/";
     fn new() -> Self {
         // Fresh log per run; append mode because the native side writes too.
-        let path = "/media/developer/com.denisefremov.luma/luma-cinema.log";
+        let path = "/media/developer/com.archbtw.luma/luma-cinema.log";
         let _ = std::fs::write(path, "");
         let log = std::fs::OpenOptions::new()
             .create(true)
@@ -399,7 +399,7 @@ impl Backend {
     }
     fn window_mode() -> &'static str {
         // Escape hatch for on-TV diagnosis without a rebuild.
-        match std::fs::read_to_string("/media/developer/com.denisefremov.luma/cinema-window") {
+        match std::fs::read_to_string("/media/developer/com.archbtw.luma/cinema-window") {
             Ok(s) if s.trim() == "none" => "none",
             _ => "export",
         }
@@ -459,7 +459,7 @@ impl Backend {
             return self.open_legacy(url);
         }
         let mode = Self::window_mode();
-        let mut option = serde_json::json!({ "appId": "com.denisefremov.luma" });
+        let mut option = serde_json::json!({ "appId": "com.archbtw.luma" });
         if mode == "export" {
             self.window = self.native.window_create();
             if let Some(id) = self.window.as_ref() {

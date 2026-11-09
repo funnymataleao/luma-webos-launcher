@@ -322,8 +322,8 @@ struct Service {
 
 /// The poster folder Home stacks use, and the Library's own one inside it.
 fn folders() -> (PathBuf, PathBuf) {
-    let cache = if std::path::Path::new("/media/developer/com.denisefremov.luma").exists() {
-        PathBuf::from("/media/developer/com.denisefremov.luma/posters")
+    let cache = if std::path::Path::new("/media/developer/com.archbtw.luma").exists() {
+        PathBuf::from("/media/developer/com.archbtw.luma/posters")
     } else {
         std::env::temp_dir().join("luma-posters")
     };

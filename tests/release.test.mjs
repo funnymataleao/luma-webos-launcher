@@ -7,7 +7,7 @@ import { syncVersions } from '../tools/sync-version.mjs';
 import { isReleaseMerge, isVersionIncrease } from '../tools/release-gate.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
-const metadata = ['appinfo.json', 'Cargo.toml', 'Cargo.lock', 'readme.md'];
+const metadata = ['appinfo.json', 'Cargo.toml', 'Cargo.lock', 'README.md'];
 
 async function fixture(t, version = '2.0.4') {
   const scratch = path.join(root, '.build');
@@ -51,8 +51,8 @@ test('version sync changes only release versions and is idempotent', async (t) =
   assert.equal(
     after[3],
     before[3].replaceAll(
-      `com.denisefremov.luma_${previous}_arm.ipk`,
-      'com.denisefremov.luma_3.1.0_arm.ipk',
+      `com.archbtw.luma_${previous}_arm.ipk`,
+      'com.archbtw.luma_3.1.0_arm.ipk',
     ),
   );
   assert.deepEqual((await syncVersions(directory, { check: true })).changed, []);

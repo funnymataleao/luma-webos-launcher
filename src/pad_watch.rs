@@ -7,7 +7,7 @@ use std::io::Read;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-pub const FLAG: &str = "/media/developer/com.denisefremov.luma/moonlight-quit";
+pub const FLAG: &str = "/media/developer/com.archbtw.luma/moonlight-quit";
 pub const PIDFILE: &str = "/tmp/luma-pad-watch.pid";
 const MOONLIGHT: &str = "com.limelight.webos";
 const BTN_SELECT: u16 = 0x13a;
@@ -119,7 +119,7 @@ pub fn run() -> ! {
                     let _ = std::fs::write(FLAG, b"1");
                     luna(
                         "luna://com.webos.service.applicationManager/launch",
-                        "{\"id\":\"com.denisefremov.luma\"}",
+                        "{\"id\":\"com.archbtw.luma\"}",
                     );
                 }
             }

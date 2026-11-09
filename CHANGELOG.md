@@ -1,5 +1,17 @@
 # lg-luma
 
+## 2.3.0
+
+### Minor Changes
+
+- New app ID `com.archbtw.luma` (companion player `com.archbtw.luma.player`). It installs beside the original Luma and starts with fresh settings.
+- Video wallpapers are the default. Settings › Wallpaper › Upload Videos adds your own MP4/MOV clips (H.264 or HEVC) from a phone or computer on the same network, and "Only My Videos" rotates just those.
+- Tech-themed weather headlines and greetings in every language.
+- LG's own apps (Multi View, Gallery, Home Hub, Camera, Web Browser, LG Link, Sports, Memory Care and the like) start hidden. Live TV stays visible.
+- Remove the crypto widget and its price requests.
+- `autostart.sh enable|disable|status` installs a cold-boot hook that opens Luma after a full boot.
+- Fix `pnpm version:sync` on case-sensitive file systems (README.md).
+
 ## 2.2.2
 
 ### Patch Changes

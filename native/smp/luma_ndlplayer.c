@@ -32,7 +32,7 @@ typedef struct {
 } LumaNDL;
 static LumaNDL *active=NULL;
 static void record(const char *label,int64_t value) {
-    FILE *f=fopen("/media/developer/com.denisefremov.luma/luma-ndl-events.log","a");
+    FILE *f=fopen("/media/developer/com.archbtw.luma/luma-ndl-events.log","a");
     if(f){fprintf(f,"%s %lld\n",label,(long long)value);fclose(f);}
 }
 static void resource_released(const char *reason) {
@@ -137,10 +137,10 @@ void luma_hw_metrics(void *opaque,int index,const char *source,const char *codec
                      double max_late_ms,size_t max_au) {
     LumaNDL *p=opaque;
     if(!p)return;
-    const char *path="/media/developer/com.denisefremov.luma/luma-video-metrics.log";
+    const char *path="/media/developer/com.archbtw.luma/luma-video-metrics.log";
     struct stat st;
     if(stat(path,&st)==0 && st.st_size>1024*1024){
-        rename(path,"/media/developer/com.denisefremov.luma/luma-video-metrics.prev.log");
+        rename(path,"/media/developer/com.archbtw.luma/luma-video-metrics.prev.log");
     }
     FILE *f=fopen(path,"a");
     if(!f)return;
