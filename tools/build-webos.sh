@@ -22,7 +22,10 @@ export CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABI_LINKER="$CC"
 # The target's soft-float *calling convention* is required by webOS, but its
 # default software FP codegen is not. Match the NDK's ARMv7/VFP baseline while
 # retaining the gnueabi ABI; keep NEON off for portable Rust scalar code.
-export CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABI_RUSTFLAGS="${CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABI_RUSTFLAGS:-} -C target-cpu=cortex-a9 -C target-feature=-neon,-soft-float -C link-arg=--sysroot=$SYSROOT -C link-arg=-Wl,-rpath,\$ORIGIN/lib"
+# getrandom_backend=linux_raw: webOS 4 has glibc 2.24, which lacks getrandom(),
+# so getrandom 0.4 (via tungstenite) falls back to /dev/random, which the app
+# jail does not have. The kernel has the syscall; use it directly.
+export CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABI_RUSTFLAGS="${CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABI_RUSTFLAGS:-} -C target-cpu=cortex-a9 -C target-feature=-neon,-soft-float -C link-arg=--sysroot=$SYSROOT -C link-arg=-Wl,-rpath,\$ORIGIN/lib --cfg getrandom_backend=\"linux_raw\""
 export CC_armv7_unknown_linux_gnueabi="$CC"
 export AR_armv7_unknown_linux_gnueabi="$WEBOS_NDK/bin/arm-webos-linux-gnueabi-ar"
 export CFLAGS_armv7_unknown_linux_gnueabi="${CFLAGS_armv7_unknown_linux_gnueabi:-} --sysroot=$SYSROOT"
