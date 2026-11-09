@@ -2298,7 +2298,9 @@ fn run() -> Result<(), String> {
     let bitcoin_updates = if webos { Some(bitcoin_worker()) } else { None };
     let platform = Platform::new(webos);
     effects(
-        vec![Effect::Refresh, Effect::Root(None)],
+        // Stacks are fetched at start too: before, Home showed none until a
+        // change in Settings › Stacks asked for them.
+        vec![Effect::Refresh, Effect::Root(None), Effect::StacksRefresh],
         &mut state,
         &platform,
         &preferences_path,
@@ -3094,6 +3096,11 @@ fn run() -> Result<(), String> {
                     }
                     WindowEvent::FocusLost => press = None,
                     WindowEvent::Shown | WindowEvent::Restored | WindowEvent::FocusGained => {
+                        // Back in front after another app: Continue watching
+                        // and Latest may have changed while Luma was away.
+                        if !visible {
+                            pending.push(Effect::StacksRefresh);
+                        }
                         visible = true;
                         state.dirty = true;
                         // Double Start+Select on a TV gamepad (pad_watch): close the game.
