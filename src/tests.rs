@@ -3460,3 +3460,66 @@ fn unsupported_saved_media_source_is_ignored_without_losing_other_settings() {
     assert_eq!(prefs.stacks[0].collection, "recent");
     assert!(prefs.luma_player);
 }
+
+#[test]
+fn live_tv_background_survives_sanitize_and_is_the_third_type() {
+    let mut preferences: crate::model::Preferences =
+        serde_json::from_str(r#"{"background":"live-tv"}"#).unwrap();
+    preferences.sanitize();
+    assert_eq!(preferences.background, crate::model::LIVE_TV_BACKGROUND);
+    assert!(preferences.live_tv());
+    assert_eq!(preferences.wallpaper_type(), 2);
+    preferences.background = "video".into();
+    assert_eq!(preferences.wallpaper_type(), 1);
+    preferences.background = "dunes".into();
+    assert_eq!(preferences.wallpaper_type(), 0);
+}
+
+#[test]
+fn wallpaper_type_list_switches_between_photo_video_and_live_tv() {
+    use crate::state::{Page, SettingsLevel, Target};
+    let mut state = ready();
+    state.page = Page::Settings;
+    state.preferences.background = crate::model::LIVE_TV_BACKGROUND.into();
+    state.photo_background_backup = "yosemite".into();
+    for (tab, expected) in [
+        (0, "yosemite"),
+        (2, "live-tv"),
+        (1, "video"),
+        (0, "yosemite"),
+    ] {
+        state.settings_level = SettingsLevel::WallpaperType;
+        state.focus = Target::WallpaperTab(tab);
+        state.activate();
+        assert_eq!(state.preferences.background, expected, "tab {tab}");
+    }
+}
+
+#[test]
+fn up_in_the_wallpaper_type_list_reaches_photo() {
+    use crate::state::{Direction, Page, SettingsLevel, Target};
+    let mut state = ready();
+    state.page = Page::Settings;
+    state.preferences.background = crate::model::LIVE_TV_BACKGROUND.into();
+    state.settings_level = SettingsLevel::WallpaperType;
+    state.focus = Target::WallpaperTab(2);
+    let controls = scene(&state).controls;
+    state.direction(Direction::Up, &controls);
+    assert_eq!(state.focus, Target::WallpaperTab(1));
+    let controls = scene(&state).controls;
+    state.direction(Direction::Up, &controls);
+    assert_eq!(state.focus, Target::WallpaperTab(0));
+}
+
+#[test]
+fn live_tv_draws_no_wallpaper_and_uses_plain_glass() {
+    let mut state = ready();
+    state.preferences.background = crate::model::LIVE_TV_BACKGROUND.into();
+    let drawn = scene(&state);
+    assert!(drawn.frost_source.is_none());
+    assert!(!drawn.draw.iter().any(|d| matches!(
+        d,
+        crate::renderer::Draw::Image(path, ..) | crate::renderer::Draw::TintedImage(path, ..)
+            if path.contains("wallpapers/") || path.contains("video-stills/")
+    )));
+}

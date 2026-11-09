@@ -233,6 +233,27 @@ fn is_back_keycode(code: i32, webos: bool) -> bool {
     code == 461 || (webos && matches!(code, WEBOS_BACK_KEYCODE | WEBOS_NATIVE_BACK_KEYCODE))
 }
 
+/// Set when Luma launches live TV. With the Live TV background Luma is an
+/// overlay over live TV, so when live TV already plays the launch changes
+/// nothing on screen; Luma then closes once the launch has gone through.
+static QUIT_AFTER_LAUNCH: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+const LIVE_TV_ID: &str = "com.webos.app.livetv";
+
+/// Window type for the next window SDL-webOS creates. Live TV needs an overlay
+/// window: webOS keeps live TV playing behind it, as behind LG Home; behind a
+/// normal (card) window it stops. SDL-webOS reads this hint when it creates
+/// the window (webosbrew/SDL-webOS#19).
+fn set_window_type(live_tv: bool) {
+    sdl2::hint::set(
+        "SDL_WEBOS_WINDOW_TYPE",
+        if live_tv {
+            "_WEBOS_WINDOW_TYPE_OVERLAY"
+        } else {
+            "_WEBOS_WINDOW_TYPE_CARD"
+        },
+    );
+}
+
 fn effects(
     effects: Vec<Effect>,
     state: &mut State,
@@ -266,6 +287,10 @@ fn effects(
                 if !state.launching {
                     if platform.webos {
                         state.launching = true;
+                        QUIT_AFTER_LAUNCH.store(
+                            id == LIVE_TV_ID && state.preferences.live_tv(),
+                            std::sync::atomic::Ordering::Relaxed,
+                        );
                         platform.send(Request::Launch(id));
                     } else {
                         let title = state
@@ -2348,7 +2373,7 @@ fn run() -> Result<(), String> {
     } else {
         Size::new(1280, 720)
     });
-    let create_window = || {
+    let build_window = || {
         let mut builder = video.window("Luma", requested.width, requested.height);
         builder.opengl().allow_highdpi().position_centered();
         if options.fullscreen || (webos && options.resolution.is_none() && !requested.is_4k()) {
@@ -2358,10 +2383,17 @@ fn run() -> Result<(), String> {
         } else {
             builder.resizable();
         }
-        let window = builder.build().map_err(|e| e.to_string())?;
+        builder.build().map_err(|e| e.to_string())
+    };
+    let create_window = || {
+        let window = build_window()?;
         let context = window.gl_create_context()?;
         Ok::<_, String>((window, context))
     };
+    let mut window_live_tv = state.preferences.live_tv();
+    if webos {
+        set_window_type(window_live_tv);
+    }
     let mut opened = None;
     let mut failures = Vec::new();
     // Prefer true sample coverage of intact glyph outlines. Some TV EGL stacks
@@ -2384,7 +2416,7 @@ fn run() -> Result<(), String> {
             Err(error) => failures.push(format!("{samples}x MSAA: {error}")),
         }
     }
-    let (mut window, _context) = opened.ok_or_else(|| failures.join("; "))?;
+    let (mut window, context) = opened.ok_or_else(|| failures.join("; "))?;
     gl::load_with(|name| video.gl_get_proc_address(name) as *const _);
     if !webos {
         unsafe { gl::Enable(gl::MULTISAMPLE) };
@@ -2466,6 +2498,8 @@ fn run() -> Result<(), String> {
     let mut last_minute = None;
     let mut frame = 0u64;
     let mut visible = true;
+    // When switching to the Live TV background: the moment to show the overlay.
+    let mut retype_at: Option<Instant> = None;
     let mut last_ha_view: Option<HaView> = None;
     let mut last_ha_connect = false;
     // Starfish requires a fully displayed/foreground native Wayland window.
@@ -2793,6 +2827,8 @@ fn run() -> Result<(), String> {
                 }
                 Response::Launched(result) => {
                     state.launching = false;
+                    let quit_after =
+                        QUIT_AFTER_LAUNCH.swap(false, std::sync::atomic::Ordering::Relaxed);
                     match result {
                         Err(error) => {
                             eprintln!("{error}");
@@ -2805,6 +2841,9 @@ fn run() -> Result<(), String> {
                         Ok(()) => {
                             state.notice = None;
                             state.dirty = true;
+                            if quit_after {
+                                running = false;
+                            }
                         }
                     }
                 }
@@ -3866,6 +3905,7 @@ fn run() -> Result<(), String> {
                     height,
                     webos
                         && (state.playback.is_some()
+                            || state.preferences.live_tv()
                             || (state.preferences.background == "video"
                                 && state.video_frame_ready)),
                 );
@@ -3991,6 +4031,44 @@ fn run() -> Result<(), String> {
         frame += 1;
         if final_frame {
             running = false;
+        }
+        // Switching to or from Live TV changes the window type, which webOS only
+        // takes when a window is created: replace the window, on the same GL
+        // context so shaders, fonts and artwork stay loaded.
+        let mut retype = webos && state.preferences.live_tv() != window_live_tv;
+        if retype && state.preferences.live_tv() && retype_at.is_none() {
+            // Card to overlay: when Luma's card window goes, webOS brings back
+            // the last app, which also pushes a new overlay out of view. Put
+            // live TV in front first and show the overlay a moment later.
+            window.hide();
+            visible = false;
+            platform.send(Request::Launch(LIVE_TV_ID.into()));
+            retype_at = Some(Instant::now() + Duration::from_millis(1500));
+        }
+        if let Some(at) = retype_at {
+            retype = Instant::now() >= at;
+            if retype {
+                retype_at = None;
+            }
+        }
+        if retype {
+            window_live_tv = state.preferences.live_tv();
+            set_window_type(window_live_tv);
+            match build_window().and_then(|next| {
+                next.gl_make_current(&context)?;
+                Ok(next)
+            }) {
+                Ok(next) => {
+                    window = next;
+                    let _ = video.gl_set_swap_interval(1);
+                    visible = true;
+                    state.dirty = true;
+                }
+                Err(error) => {
+                    eprintln!("Luma window type: {error}");
+                    running = false;
+                }
+            }
         }
         // Block until input instead of polling at frame rate on idle screens.
         // VSync paces animation; holds, scripted checks and icons still being
