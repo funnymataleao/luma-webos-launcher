@@ -639,7 +639,7 @@ impl State {
             home.selection_version = 1;
         }
         let video_gallery = preferences.background == "video";
-        let photo_backup = if video_gallery {
+        let photo_backup = if preferences.wallpaper_type() != 0 {
             "yosemite".into()
         } else {
             preferences.background.clone()
@@ -1744,7 +1744,7 @@ impl State {
                         .unwrap_or(0),
                 ),
                 SettingsLevel::WallpaperType => {
-                    Target::WallpaperTab(usize::from(self.preferences.background == "video"))
+                    Target::WallpaperTab(self.preferences.wallpaper_type())
                 }
                 SettingsLevel::WallpaperPhotos => Target::Background(0),
                 SettingsLevel::StackAdd => Target::StackSource(0),
@@ -2331,18 +2331,22 @@ impl State {
             if self.page == Page::Settings
                 && self.settings_level != SettingsLevel::Root
                 && matches!(direction, Direction::Up)
-                && matches!(
+                && (matches!(
                     self.focus,
                     Target::WallpaperMenu(0)
                         | Target::WallpaperTab(0)
-                        | Target::WallpaperTab(1)
                         | Target::VideoGroup(0)
                         | Target::VideoPick(_)
                         | Target::Setting(0)
                         | Target::WeatherToggle
                         | Target::SmartConnect
                         | Target::SmartShowTab
-                )
+                ) || (
+                    // Photos | Videos side by side in the gallery header; in
+                    // the Type list Video sits under Photo and Up goes there.
+                    self.focus == Target::WallpaperTab(1)
+                        && self.settings_level != SettingsLevel::WallpaperType
+                ))
             {
                 let first = match self.settings_level {
                     SettingsLevel::WallpaperCategory(group) => crate::video_catalog::groups(0)
@@ -3226,7 +3230,7 @@ impl State {
             let id = &crate::video_catalog::all()[index].id;
             self.preferences.video_excluded.remove(id);
             self.preferences.video_index = index;
-            if self.preferences.background != "video" {
+            if self.preferences.wallpaper_type() == 0 {
                 self.photo_background_backup = self.preferences.background.clone();
             }
             self.preferences.background = "video".into();
@@ -4484,7 +4488,7 @@ impl State {
             Target::WallpaperMenu(index) => match index {
                 0 => self.settings_push(
                     SettingsLevel::WallpaperType,
-                    Target::WallpaperTab(usize::from(self.preferences.background == "video")),
+                    Target::WallpaperTab(self.preferences.wallpaper_type()),
                 ),
                 1 => self.settings_push(SettingsLevel::WallpaperPhotos, Target::Background(0)),
                 2 => self.settings_push(SettingsLevel::WallpaperVideos, Target::VideoGroup(0)),
@@ -4551,14 +4555,19 @@ impl State {
                 return vec![Effect::Save];
             }
             Target::WallpaperTab(tab) => {
-                let video = tab == 1;
-                if video && self.preferences.background != "video" {
-                    self.photo_background_backup = self.preferences.background.clone();
-                    self.preferences.background = "video".into();
-                } else if !video && self.preferences.background == "video" {
-                    self.preferences.background = self.photo_background_backup.clone();
+                let current = self.preferences.wallpaper_type();
+                if tab != current {
+                    if current == 0 {
+                        self.photo_background_backup = self.preferences.background.clone();
+                    }
+                    self.preferences.background = match tab {
+                        1 => "video".into(),
+                        2 => crate::model::LIVE_TV_BACKGROUND.into(),
+                        _ => self.photo_background_backup.clone(),
+                    };
+                    self.video_frame_ready = false;
                 }
-                self.wallpaper_gallery_video = video;
+                self.wallpaper_gallery_video = tab == 1;
                 self.previous_background = None;
                 self.settings_pop(SettingsLevel::Section, Target::WallpaperMenu(0));
                 return vec![Effect::Save];
@@ -4622,7 +4631,9 @@ impl State {
                     self.preferences.background = self.photo_background_backup.clone();
                     self.video_frame_ready = false;
                 } else {
-                    self.photo_background_backup = self.preferences.background.clone();
+                    if self.preferences.wallpaper_type() == 0 {
+                        self.photo_background_backup = self.preferences.background.clone();
+                    }
                     self.preferences.background = "video".into();
                 }
                 self.previous_background = None;
@@ -4646,7 +4657,7 @@ impl State {
                 };
                 if !self.preferences.reduced_motion
                     && self.preferences.background != selected
-                    && self.preferences.background != "video"
+                    && self.preferences.wallpaper_type() == 0
                     && selected != "video"
                 {
                     self.previous_background =

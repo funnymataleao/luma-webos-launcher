@@ -634,7 +634,10 @@ pub fn scene_with_pill(
 ) -> Scene {
     settings_art::set_now(now);
     let mut out = Scene::new();
-    if state.preferences.background == "video" {
+    if state.preferences.live_tv() {
+        // Nothing behind the UI: the window is cleared transparent and live TV
+        // (or the input underneath) shows through.
+    } else if state.preferences.background == "video" {
         // Keep one stable scrim over both the transition still and the live
         // hardware plane. The still fades out only after the first real frame,
         // so there is never a transparent/black gap or a bright-to-dim jump.
@@ -695,17 +698,23 @@ pub fn scene_with_pill(
     // Settings sits on the same wallpaper as every page (the
     // extra dark scrim there looked cheap); its plates are plain glass.
     let dim = 1.;
-    out.frost_source = Some(if state.preferences.background == "video" {
-        (
-            video_still_path(assets, state.preferences.video_index),
-            [0.6 * dim, 0.6 * dim, 0.6 * dim, 1.],
-        )
+    out.frost_source = if state.preferences.live_tv() {
+        // Live TV is a hardware plane GL never sees: nothing to blur, so plates
+        // use the plain glass fill, which stays readable over a bright picture.
+        None
     } else {
-        (
-            assets.path(format!("wallpapers/{}.jpg", state.preferences.background)),
-            [dim, dim, dim, 1.],
-        )
-    });
+        Some(if state.preferences.background == "video" {
+            (
+                video_still_path(assets, state.preferences.video_index),
+                [0.6 * dim, 0.6 * dim, 0.6 * dim, 1.],
+            )
+        } else {
+            (
+                assets.path(format!("wallpapers/{}.jpg", state.preferences.background)),
+                [dim, dim, dim, 1.],
+            )
+        })
+    };
     // Home: a black floor under the rows so cards read over any wallpaper.
     // It fades out at the weather widget and lies behind the cards, never over them.
     if state.page == Page::Home {

@@ -237,6 +237,11 @@ impl UiResolution {
         }
     }
 }
+/// Background that draws nothing: live TV, or whatever input runs underneath,
+/// shows through. On webOS Luma then opens as an overlay window, which the TV
+/// keeps playing behind, as it does for LG Home.
+pub const LIVE_TV_BACKGROUND: &str = "live-tv";
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Preferences {
@@ -436,6 +441,17 @@ impl Preferences {
             self.ui_resolution.short().into()
         }
     }
+    /// Wallpaper type, as listed in Settings: 0 photo, 1 video, 2 live TV.
+    pub fn wallpaper_type(&self) -> usize {
+        match self.background.as_str() {
+            "video" => 1,
+            LIVE_TV_BACKGROUND => 2,
+            _ => 0,
+        }
+    }
+    pub fn live_tv(&self) -> bool {
+        self.background == LIVE_TV_BACKGROUND
+    }
     pub fn sanitize(&mut self) {
         if self.auto_ui_cap == UiResolution::Auto {
             self.auto_ui_cap = UiResolution::Uhd;
@@ -461,6 +477,7 @@ impl Preferences {
         }
         if (self.background == "video" && !VIDEO_WALLPAPER_SUPPORTED)
             || (self.background != "video"
+                && self.background != LIVE_TV_BACKGROUND
                 && !BACKGROUNDS.iter().any(|(id, _)| *id == self.background))
         {
             self.background = "dunes".into();

@@ -4,6 +4,11 @@ use crate::state::SettingsLevel;
 #[path = "widgets_settings_view.rs"]
 mod widgets_settings;
 // Unified living-room geometry. All panel/component spacing uses the 8px scale.
+/// Wallpaper types in Settings, by `Preferences::wallpaper_type`.
+const WALLPAPER_TYPES: [&str; 3] = ["Photo", "Video", "Live TV"];
+fn wallpaper_type_name(state: &State) -> &'static str {
+    WALLPAPER_TYPES[state.preferences.wallpaper_type()]
+}
 pub(super) const S8: f32 = 8.;
 pub(super) const S16: f32 = 16.;
 pub(super) const S24: f32 = 24.;
@@ -524,11 +529,7 @@ fn root(out: &mut Scene, state: &State, assets: &Assets) {
     };
     let values = [
         None,
-        Some(if state.preferences.background == "video" {
-            "Video"
-        } else {
-            "Photo"
-        }),
+        Some(wallpaper_type_name(state)),
         Some(on_home.as_str()),
         None,
         None,
@@ -579,11 +580,7 @@ fn wallpaper(out: &mut Scene, state: &State, assets: &Assets) {
         (
             Target::WallpaperMenu(0),
             "Type",
-            if state.preferences.background == "video" {
-                "Video".to_owned()
-            } else {
-                "Photo".to_owned()
-            },
+            wallpaper_type_name(state).to_owned(),
             true,
         ),
         (
@@ -1347,7 +1344,7 @@ fn appearance(out: &mut Scene, state: &State, assets: &Assets) {
     out.image(
         assets.path(format!(
             "wallpapers/{}.jpg",
-            if state.preferences.background == "video" {
+            if state.preferences.wallpaper_type() != 0 {
                 "dunes"
             } else {
                 &state.preferences.background
@@ -2494,7 +2491,7 @@ pub(super) fn render(out: &mut Scene, state: &State, assets: &Assets) {
                 PREVIEW_MIN,
             );
             out.settings_sidebar_range = preview_start..out.draw.len();
-            for (i, name) in ["Photo", "Video"].into_iter().enumerate() {
+            for (i, name) in WALLPAPER_TYPES.into_iter().enumerate() {
                 cell(
                     out,
                     state,
@@ -2506,7 +2503,7 @@ pub(super) fn render(out: &mut Scene, state: &State, assets: &Assets) {
                         value: None,
                         desc: None,
                         chevron: false,
-                        checked: (state.preferences.background == "video") == (i == 1),
+                        checked: state.preferences.wallpaper_type() == i,
                         partial: false,
                     },
                 );
