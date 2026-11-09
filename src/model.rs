@@ -242,6 +242,9 @@ impl UiResolution {
 pub struct Preferences {
     pub favorites: Option<Vec<String>>,
     pub hidden: Vec<String>,
+    /// LG system apps already hidden once by default. Unhiding one sticks,
+    /// because an app listed here is never hidden automatically again.
+    pub lg_auto_hidden: BTreeSet<String>,
     pub background: String,
     pub video_index: usize,
     /// Bitset for Apple, Amazon, Aerial Community, RobinFrcd.
@@ -254,7 +257,7 @@ pub struct Preferences {
     pub hour_24: bool,
     pub reduced_motion: bool,
     pub show_seconds: bool,
-    /// Optional name appended to the Home greeting ("Good evening, Ana."). Empty = plain greeting.
+    /// Optional name appended to the Home greeting ("Logged in for the evening, Ana."). Empty = plain greeting.
     pub greeting_name: String,
     pub heading_font: crate::typography::HeadingFont,
     pub text_font: crate::typography::TextFont,
@@ -311,6 +314,7 @@ impl Default for Preferences {
         Self {
             favorites: None,
             hidden: vec![],
+            lg_auto_hidden: BTreeSet::new(),
             background: "dunes".into(),
             video_index: 0,
             video_sources_mask: crate::video_catalog::ALL_SOURCES,
@@ -376,12 +380,30 @@ impl Preferences {
                 if ids.len() >= 6 {
                     break;
                 }
-                if !ids.contains(&app.id) {
+                if !ids.contains(&app.id) && !self.hidden.contains(&app.id) {
                     ids.push(app.id.clone());
                 }
             }
             ids
         })
+    }
+
+    /// Hides LG's own apps the first time they show up in the inventory.
+    /// Returns true when the preferences changed and should be saved.
+    pub fn hide_new_lg_apps(&mut self, apps: &[App]) -> bool {
+        let mut changed = false;
+        for app in apps
+            .iter()
+            .filter(|app| is_lg_system_app(&app.id, &app.title))
+        {
+            if self.lg_auto_hidden.insert(app.id.clone()) {
+                if !self.hidden.contains(&app.id) {
+                    self.hidden.push(app.id.clone());
+                }
+                changed = true;
+            }
+        }
+        changed
     }
 
     pub fn input_visible(&self, input: &Input) -> bool {
@@ -474,6 +496,10 @@ impl Preferences {
             clean(ids);
         }
         clean(&mut self.hidden);
+        self.lg_auto_hidden.retain(|id| valid_app_id(id));
+        while self.lg_auto_hidden.len() > 1000 {
+            self.lg_auto_hidden.pop_last();
+        }
         self.input_modes.retain(|id, _| valid_app_id(id));
         self.input_names = std::mem::take(&mut self.input_names)
             .into_iter()
@@ -483,6 +509,55 @@ impl Preferences {
             .take(128)
             .collect();
     }
+}
+
+/// App IDs that always stay visible even though LG ships them.
+const LG_KEEP: [&str; 1] = ["com.webos.app.livetv"];
+/// ID prefixes used by LG's built-in and LG-published apps.
+const LG_PREFIXES: [&str; 6] = [
+    "com.webos.",
+    "com.palm.",
+    "com.lge.",
+    "com.lg.",
+    "lge.",
+    "com.lgtvod.",
+];
+/// Titles of LG system apps that some firmware ships under other IDs.
+const LG_TITLES: [&str; 22] = [
+    "memory care",
+    "multi view",
+    "multiview",
+    "apps",
+    "lg content store",
+    "sports",
+    "sports alerts",
+    "home hub",
+    "home dashboard",
+    "camera",
+    "web browser",
+    "gallery",
+    "art gallery",
+    "music",
+    "photo & video",
+    "screen share",
+    "room to room share",
+    "user guide",
+    "smart tips",
+    "game optimizer",
+    "always ready",
+    "help",
+];
+
+/// LG's own apps: Multi View, Gallery, Home Hub, Camera, Web Browser, LG Link,
+/// LG Channels and the like. Live TV is kept.
+pub fn is_lg_system_app(id: &str, title: &str) -> bool {
+    if LG_KEEP.contains(&id) {
+        return false;
+    }
+    let title = title.trim().to_lowercase();
+    LG_PREFIXES.iter().any(|prefix| id.starts_with(prefix))
+        || title.starts_with("lg ")
+        || LG_TITLES.contains(&title.as_str())
 }
 
 pub const INPUT_NAME_LIMIT: usize = 40;

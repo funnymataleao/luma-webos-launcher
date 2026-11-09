@@ -1,5 +1,5 @@
 //! Home widgets: the layout preferences, the grid math and the background
-//! data they show (extended Open-Meteo forecast, public crypto prices).
+//! data they show (extended Open-Meteo forecast).
 //! No request runs on the SDL thread; workers hand results over a channel.
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -29,16 +29,16 @@ pub fn inner_radius(outer: f32, padding: f32) -> f32 {
 #[serde(rename_all = "lowercase")]
 pub enum Kind {
     Weather,
-    Crypto,
     Hdmi,
     Smart,
 }
 impl Kind {
-    pub const ALL: [Self; 4] = [Self::Weather, Self::Crypto, Self::Hdmi, Self::Smart];
+    pub const ALL: [Self; 3] = [Self::Weather, Self::Hdmi, Self::Smart];
+    /// Widgets that have a one-line text form.
+    pub const TEXT: [Self; 2] = [Self::Weather, Self::Smart];
     pub fn title(self) -> &'static str {
         match self {
             Self::Weather => "Weather",
-            Self::Crypto => "Crypto",
             Self::Hdmi => "HDMI input",
             Self::Smart => "Smart Home",
         }
@@ -86,118 +86,16 @@ pub struct Block {
     pub size: Size,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Exchange {
-    #[default]
-    Binance,
-    Coinbase,
-    Kraken,
-    Bybit,
-    Okx,
-    Bitfinex,
-    Coingecko,
-}
-impl Exchange {
-    pub const ALL: [Self; 7] = [
-        Self::Binance,
-        Self::Coinbase,
-        Self::Kraken,
-        Self::Bybit,
-        Self::Okx,
-        Self::Bitfinex,
-        Self::Coingecko,
-    ];
-    pub fn title(self) -> &'static str {
-        match self {
-            Self::Binance => "Binance",
-            Self::Coinbase => "Coinbase",
-            Self::Kraken => "Kraken",
-            Self::Bybit => "Bybit",
-            Self::Okx => "OKX",
-            Self::Bitfinex => "Bitfinex",
-            Self::Coingecko => "CoinGecko (average price)",
-        }
-    }
-    pub fn short(self) -> &'static str {
-        match self {
-            Self::Coingecko => "CoinGecko",
-            other => other.title(),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Period {
-    #[serde(rename = "1h")]
-    Hour,
-    #[default]
-    #[serde(rename = "24h")]
-    Day,
-    #[serde(rename = "7d")]
-    Week,
-    #[serde(rename = "1y")]
-    Year,
-}
-impl Period {
-    pub const ALL: [Self; 4] = [Self::Hour, Self::Day, Self::Week, Self::Year];
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Hour => "1H",
-            Self::Day => "24H",
-            Self::Week => "7D",
-            Self::Year => "1Y",
-        }
-    }
-    pub fn long(self) -> &'static str {
-        match self {
-            Self::Hour => "1 hour",
-            Self::Day => "24 hours",
-            Self::Week => "7 days",
-            Self::Year => "1 year",
-        }
-    }
-}
-
-/// Popular coins offered in Settings: (symbol, name, brand colour, glyph, CoinGecko id).
-pub const COINS: [(&str, &str, u32, &str, &str); 12] = [
-    ("BTC", "Bitcoin", 0xf7931a, "₿", "bitcoin"),
-    ("ETH", "Ethereum", 0x627eea, "Ξ", "ethereum"),
-    ("SOL", "Solana", 0x7b4fe0, "S", "solana"),
-    ("TON", "Toncoin", 0x0098ea, "T", "the-open-network"),
-    ("XRP", "XRP", 0x2a2f36, "X", "ripple"),
-    ("DOGE", "Dogecoin", 0xc2a633, "Ð", "dogecoin"),
-    ("BNB", "BNB", 0xf3ba2f, "B", "binancecoin"),
-    ("ADA", "Cardano", 0x0033ad, "A", "cardano"),
-    ("TRX", "TRON", 0xeb0029, "T", "tron"),
-    ("AVAX", "Avalanche", 0xe84142, "A", "avalanche-2"),
-    ("LTC", "Litecoin", 0x345d9d, "Ł", "litecoin"),
-    ("LINK", "Chainlink", 0x2a5ada, "L", "chainlink"),
-];
-pub fn coin(symbol: &str) -> (&'static str, u32, &'static str) {
-    COINS
-        .iter()
-        .find(|c| c.0 == symbol)
-        .map(|c| (c.1, c.2, c.3))
-        .unwrap_or(("", 0x3a3f47, "•"))
-}
-pub const QUOTES: [&str; 3] = ["USD", "EUR", "USDT"];
-pub const REFRESH_CHOICES: [u32; 4] = [15, 30, 60, 300];
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct WidgetPrefs {
-    /// Text line, left to right.
+    /// Text line, left to right. Entries of removed widget kinds (the old
+    /// crypto widget) are dropped on load instead of failing the whole file.
+    #[serde(deserialize_with = "known_entries")]
     pub text: Vec<Kind>,
     /// Blocks, left to right; together at most three columns.
+    #[serde(deserialize_with = "known_entries")]
     pub blocks: Vec<Block>,
-    pub exchange: Exchange,
-    pub coins: Vec<String>,
-    pub main_coin: String,
-    pub quote: String,
-    pub period: Period,
-    pub refresh_seconds: u32,
     /// HDMI M widget input id; empty = the first connected input.
     pub hdmi_input: String,
     pub hdmi_live: bool,
@@ -212,23 +110,11 @@ pub struct WidgetPrefs {
 impl Default for WidgetPrefs {
     fn default() -> Self {
         Self {
-            text: vec![Kind::Weather, Kind::Crypto, Kind::Smart],
-            blocks: vec![
-                Block {
-                    kind: Kind::Weather,
-                    size: Size::M,
-                },
-                Block {
-                    kind: Kind::Crypto,
-                    size: Size::S,
-                },
-            ],
-            exchange: Exchange::Binance,
-            coins: vec!["BTC".into(), "ETH".into(), "SOL".into()],
-            main_coin: "BTC".into(),
-            quote: "USD".into(),
-            period: Period::Day,
-            refresh_seconds: 30,
+            text: vec![Kind::Weather, Kind::Smart],
+            blocks: vec![Block {
+                kind: Kind::Weather,
+                size: Size::M,
+            }],
             hdmi_input: String::new(),
             hdmi_live: true,
             hdmi_hide_no_signal: false,
@@ -238,6 +124,19 @@ impl Default for WidgetPrefs {
         }
     }
 }
+/// Reads a list, skipping entries that no longer parse (removed kinds).
+fn known_entries<'de, D, T>(deserializer: D) -> std::result::Result<Vec<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: serde::de::DeserializeOwned,
+{
+    let raw = Vec::<Value>::deserialize(deserializer)?;
+    Ok(raw
+        .into_iter()
+        .filter_map(|v| serde_json::from_value(v).ok())
+        .collect())
+}
+
 impl WidgetPrefs {
     /// Repair anything a hand-edited or old file could hold.
     pub fn normalize(&mut self) {
@@ -262,33 +161,12 @@ impl WidgetPrefs {
             used += b.size.columns();
             true
         });
-        self.coins.retain(|c| !c.trim().is_empty());
-        self.coins.dedup();
-        self.coins.truncate(8);
-        if self.coins.is_empty() {
-            self.coins = vec!["BTC".into()];
-        }
-        if !self.coins.contains(&self.main_coin) {
-            self.main_coin = self.coins[0].clone();
-        }
-        if !QUOTES.contains(&self.quote.as_str()) {
-            self.quote = "USD".into();
-        }
-        if !REFRESH_CHOICES.contains(&self.refresh_seconds) {
-            self.refresh_seconds = 30;
-        }
     }
     pub fn columns_used(&self) -> usize {
         self.blocks.iter().map(|b| b.size.columns()).sum()
     }
     pub fn uses(&self, kind: Kind) -> bool {
         self.text.contains(&kind) || self.blocks.iter().any(|b| b.kind == kind)
-    }
-    /// Coins shown, main coin first.
-    pub fn ordered_coins(&self) -> Vec<String> {
-        let mut out = vec![self.main_coin.clone()];
-        out.extend(self.coins.iter().filter(|c| **c != self.main_coin).cloned());
-        out
     }
 }
 
@@ -331,8 +209,6 @@ pub fn layout(blocks: &[Block], has_text: bool, pitch: f32, tile: f32, strip_rig
 pub enum Detail {
     /// 0 today, 1 tomorrow, 2 ten days.
     Weather { tab: usize },
-    /// Index into `WidgetPrefs::ordered_coins`.
-    Crypto { coin: usize },
 }
 
 /// Home edit mode; `grab` is the block the pointer carries.
@@ -354,13 +230,6 @@ pub enum SettingsPage {
     Root,
     Add,
     Text,
-    Crypto,
-    Exchange,
-    Coins,
-    MainCoin,
-    Quote,
-    Period,
-    Refresh,
     Hdmi,
     HdmiInput,
     Smart,
@@ -370,17 +239,6 @@ pub enum SettingsPage {
 }
 
 // ---------------------------------------------------------------- data
-
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Quote {
-    pub symbol: String,
-    pub price: f64,
-    pub change_pct: f64,
-    /// Oldest first, for the sparkline and the full-screen chart.
-    pub series: Vec<f64>,
-    pub high: f64,
-    pub low: f64,
-}
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Day {
@@ -425,29 +283,12 @@ pub struct Forecast {
 
 #[derive(Default)]
 pub struct Data {
-    pub quotes: Vec<Quote>,
-    /// Quote set the prices were asked for (exchange, quote, period).
-    pub quotes_for: Option<(Exchange, String, Period)>,
-    pub quotes_at: Option<Instant>,
-    pub quotes_failed: bool,
     pub forecast: Option<Forecast>,
     pub forecast_at: Option<Instant>,
-    pending_quotes: bool,
     pending_forecast: bool,
-}
-impl Data {
-    pub fn quote(&self, symbol: &str) -> Option<&Quote> {
-        self.quotes.iter().find(|q| q.symbol == symbol)
-    }
 }
 
 pub enum Job {
-    Quotes {
-        exchange: Exchange,
-        quote: String,
-        period: Period,
-        coins: Vec<String>,
-    },
     Forecast {
         key: String,
         latitude: f64,
@@ -455,7 +296,6 @@ pub enum Job {
     },
 }
 pub enum Result {
-    Quotes(Exchange, String, Period, Option<Vec<Quote>>),
     Forecast(Option<Forecast>),
 }
 
@@ -477,20 +317,6 @@ pub fn service() -> &'static Service {
                 .new_agent();
             for job in inbox {
                 let result = match job {
-                    Job::Quotes {
-                        exchange,
-                        quote,
-                        period,
-                        coins,
-                    } => {
-                        let mut list = Vec::new();
-                        for symbol in &coins {
-                            if let Some(q) = fetch_quote(&agent, exchange, symbol, &quote, period) {
-                                list.push(q);
-                            }
-                        }
-                        Result::Quotes(exchange, quote, period, (!list.is_empty()).then_some(list))
-                    }
                     Job::Forecast {
                         key,
                         latitude,
@@ -523,18 +349,6 @@ pub fn tick(
         while let Ok(result) = results.try_recv() {
             changed = true;
             match result {
-                Result::Quotes(exchange, quote, period, list) => {
-                    data.pending_quotes = false;
-                    match list {
-                        Some(list) => {
-                            data.quotes = list;
-                            data.quotes_for = Some((exchange, quote, period));
-                            data.quotes_failed = false;
-                        }
-                        None => data.quotes_failed = true,
-                    }
-                    data.quotes_at = Some(Instant::now());
-                }
                 Result::Forecast(forecast) => {
                     data.pending_forecast = false;
                     data.forecast_at = Some(Instant::now());
@@ -547,25 +361,6 @@ pub fn tick(
     }
     if !active && !detail_open {
         return changed;
-    }
-    let crypto = prefs.uses(Kind::Crypto) || detail_open;
-    let wanted = (prefs.exchange, prefs.quote.clone(), prefs.period);
-    let stale_quotes = data.quotes_for.as_ref() != Some(&wanted)
-        || data
-            .quotes_at
-            .is_none_or(|at| at.elapsed() >= Duration::from_secs(prefs.refresh_seconds as u64))
-        || prefs
-            .ordered_coins()
-            .iter()
-            .any(|c| data.quote(c).is_none() && !data.quotes_failed);
-    if crypto && stale_quotes && !data.pending_quotes {
-        data.pending_quotes = true;
-        let _ = service().jobs.send(Job::Quotes {
-            exchange: prefs.exchange,
-            quote: prefs.quote.clone(),
-            period: prefs.period,
-            coins: prefs.ordered_coins(),
-        });
     }
     if let Some(place) = location
         && (prefs.uses(Kind::Weather) || detail_open)
@@ -615,203 +410,6 @@ fn num(v: &Value) -> Option<f64> {
     v.as_f64()
         .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
         .filter(|n: &f64| n.is_finite())
-}
-
-/// Candle closes for a period, oldest first.
-fn fetch_series(
-    agent: &ureq::Agent,
-    exchange: Exchange,
-    symbol: &str,
-    quote: &str,
-    period: Period,
-) -> Option<Vec<f64>> {
-    let usd = if quote == "USDT" { "USD" } else { quote };
-    let tether = if quote == "USD" { "USDT" } else { quote };
-    match exchange {
-        Exchange::Binance => {
-            let (interval, limit) = match period {
-                Period::Hour => ("1m", 60),
-                Period::Day => ("15m", 96),
-                Period::Week => ("2h", 84),
-                Period::Year => ("1w", 52),
-            };
-            let v = get_json(
-                agent,
-                &format!(
-                    "https://api.binance.com/api/v3/klines?symbol={symbol}{tether}&interval={interval}&limit={limit}"
-                ),
-            )?;
-            Some(
-                v.as_array()?
-                    .iter()
-                    .filter_map(|k| num(k.get(4)?))
-                    .collect(),
-            )
-        }
-        Exchange::Coinbase => {
-            let (granularity, take) = match period {
-                Period::Hour => (60, 60),
-                Period::Day => (900, 96),
-                Period::Week => (21600, 28),
-                Period::Year => (86400, 300),
-            };
-            let v = get_json(
-                agent,
-                &format!(
-                    "https://api.exchange.coinbase.com/products/{symbol}-{usd}/candles?granularity={granularity}"
-                ),
-            )?;
-            let mut s: Vec<f64> = v
-                .as_array()?
-                .iter()
-                .take(take)
-                .filter_map(|k| num(k.get(4)?))
-                .collect();
-            s.reverse();
-            Some(s)
-        }
-        Exchange::Kraken => {
-            let pair = format!("{}{usd}", if symbol == "BTC" { "XBT" } else { symbol });
-            let (interval, take) = match period {
-                Period::Hour => (1, 60),
-                Period::Day => (15, 96),
-                Period::Week => (60, 168),
-                Period::Year => (10080, 52),
-            };
-            let v = get_json(
-                agent,
-                &format!("https://api.kraken.com/0/public/OHLC?pair={pair}&interval={interval}"),
-            )?;
-            let result = v.get("result")?.as_object()?;
-            let rows = result
-                .iter()
-                .find(|(k, _)| k.as_str() != "last")?
-                .1
-                .as_array()?;
-            let s: Vec<f64> = rows.iter().filter_map(|k| num(k.get(4)?)).collect();
-            Some(s[s.len().saturating_sub(take)..].to_vec())
-        }
-        Exchange::Bybit => {
-            let (interval, limit) = match period {
-                Period::Hour => ("1", 60),
-                Period::Day => ("15", 96),
-                Period::Week => ("120", 84),
-                Period::Year => ("W", 52),
-            };
-            let v = get_json(
-                agent,
-                &format!(
-                    "https://api.bybit.com/v5/market/kline?category=spot&symbol={symbol}{tether}&interval={interval}&limit={limit}"
-                ),
-            )?;
-            let mut s: Vec<f64> = v
-                .get("result")?
-                .get("list")?
-                .as_array()?
-                .iter()
-                .filter_map(|k| num(k.get(4)?))
-                .collect();
-            s.reverse();
-            Some(s)
-        }
-        Exchange::Okx => {
-            let (bar, limit) = match period {
-                Period::Hour => ("1m", 60),
-                Period::Day => ("15m", 96),
-                Period::Week => ("2H", 84),
-                Period::Year => ("1W", 52),
-            };
-            let v = get_json(
-                agent,
-                &format!(
-                    "https://www.okx.com/api/v5/market/candles?instId={symbol}-{tether}&bar={bar}&limit={limit}"
-                ),
-            )?;
-            let mut s: Vec<f64> = v
-                .get("data")?
-                .as_array()?
-                .iter()
-                .filter_map(|k| num(k.get(4)?))
-                .collect();
-            s.reverse();
-            Some(s)
-        }
-        Exchange::Bitfinex => {
-            let (frame, limit) = match period {
-                Period::Hour => ("1m", 60),
-                Period::Day => ("15m", 96),
-                Period::Week => ("3h", 56),
-                Period::Year => ("1W", 52),
-            };
-            let v = get_json(
-                agent,
-                &format!(
-                    "https://api-pub.bitfinex.com/v2/candles/trade:{frame}:t{symbol}{usd}/hist?limit={limit}"
-                ),
-            )?;
-            // Bitfinex rows are [time, open, close, high, low, volume].
-            let mut s: Vec<f64> = v
-                .as_array()?
-                .iter()
-                .filter_map(|k| num(k.get(2)?))
-                .collect();
-            s.reverse();
-            Some(s)
-        }
-        Exchange::Coingecko => {
-            let id = COINS.iter().find(|c| c.0 == symbol)?.4;
-            let days = match period {
-                Period::Hour | Period::Day => "1",
-                Period::Week => "7",
-                Period::Year => "365",
-            };
-            let v = get_json(
-                agent,
-                &format!(
-                    "https://api.coingecko.com/api/v3/coins/{id}/market_chart?vs_currency={}&days={days}",
-                    usd.to_lowercase()
-                ),
-            )?;
-            let s: Vec<f64> = v
-                .get("prices")?
-                .as_array()?
-                .iter()
-                .filter_map(|p| num(p.get(1)?))
-                .collect();
-            Some(if period == Period::Hour {
-                s[s.len().saturating_sub(13)..].to_vec()
-            } else {
-                s
-            })
-        }
-    }
-}
-fn fetch_quote(
-    agent: &ureq::Agent,
-    exchange: Exchange,
-    symbol: &str,
-    quote: &str,
-    period: Period,
-) -> Option<Quote> {
-    let series = fetch_series(agent, exchange, symbol, quote, period)?;
-    quote_from_series(symbol, series)
-}
-pub fn quote_from_series(symbol: &str, series: Vec<f64>) -> Option<Quote> {
-    let first = *series.first()?;
-    let price = *series.last()?;
-    if series.len() < 2 || first <= 0. || price <= 0. {
-        return None;
-    }
-    let high = series.iter().copied().fold(f64::MIN, f64::max);
-    let low = series.iter().copied().fold(f64::MAX, f64::min);
-    Some(Quote {
-        symbol: symbol.into(),
-        price,
-        change_pct: (price - first) / first * 100.,
-        series,
-        high,
-        low,
-    })
 }
 
 fn fetch_forecast(
@@ -911,38 +509,6 @@ pub fn parse_forecast(key: &str, v: &Value) -> Option<Forecast> {
     })
 }
 
-/// Grouped price: "$67,412", "$3,512", "$171.30", "$0.1523".
-pub fn format_price(value: f64, quote: &str) -> String {
-    let sign = match quote {
-        "EUR" => "€",
-        "USDT" => "₮",
-        _ => "$",
-    };
-    let decimals = if value >= 1000. {
-        0
-    } else if value >= 1. {
-        2
-    } else {
-        4
-    };
-    let raw = format!("{:.*}", decimals, value.abs());
-    let (int, frac) = raw.split_once('.').unwrap_or((&raw, ""));
-    let mut grouped = String::new();
-    for (i, ch) in int.chars().enumerate() {
-        if i > 0 && (int.len() - i) % 3 == 0 {
-            grouped.push(',');
-        }
-        grouped.push(ch);
-    }
-    if frac.is_empty() {
-        format!("{sign}{grouped}")
-    } else {
-        format!("{sign}{grouped}.{frac}")
-    }
-}
-pub fn format_change(pct: f64) -> String {
-    format!("{} {:.2}%", if pct >= 0. { "▲" } else { "▼" }, pct.abs())
-}
 pub const WEEKDAYS: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 #[cfg(test)]
@@ -955,11 +521,10 @@ mod tests {
     fn widths_match_grid_columns_and_end_at_the_strip_edge() {
         let prefs = WidgetPrefs::default();
         let l = layout(&prefs.blocks, true, PITCH, TILE, RIGHT);
-        // M weather then S crypto: columns 4–5 and 6.
+        // A lone M weather block sits at columns 5–6.
         assert!((l.blocks[0].1 - 566.4).abs() < 0.01);
-        assert!((l.blocks[1].1 - TILE).abs() < 0.01);
-        assert!((l.blocks[1].0 + l.blocks[1].1 - RIGHT).abs() < 0.01);
-        assert!((l.left - (84. + 3. * PITCH)).abs() < 0.01);
+        assert!((l.blocks[0].0 + l.blocks[0].1 - RIGHT).abs() < 0.01);
+        assert!((l.left - (84. + 4. * PITCH)).abs() < 0.01);
         let one = WidgetPrefs {
             blocks: vec![Block {
                 kind: Kind::Weather,
@@ -989,8 +554,8 @@ mod tests {
                 Kind::Hdmi,
                 Kind::Weather,
                 Kind::Weather,
-                Kind::Crypto,
                 Kind::Smart,
+                Kind::Weather,
             ],
             ..Default::default()
         };
@@ -998,7 +563,7 @@ mod tests {
         assert_eq!(p.blocks.len(), 1);
         assert_eq!(p.blocks[0].size, Size::M);
         assert!(p.columns_used() <= ZONE_COLUMNS);
-        assert_eq!(p.text, vec![Kind::Weather, Kind::Crypto, Kind::Smart]);
+        assert_eq!(p.text, vec![Kind::Weather, Kind::Smart]);
     }
     #[test]
     fn nested_corners_are_concentric() {
@@ -1010,22 +575,21 @@ mod tests {
     fn old_preferences_without_widgets_get_the_default_layout() {
         let p: WidgetPrefs = serde_json::from_str("{}").unwrap();
         assert_eq!(p, WidgetPrefs::default());
-        let p: WidgetPrefs =
-            serde_json::from_str(r#"{"blocks":[{"kind":"crypto","size":"l"}],"period":"7d"}"#)
-                .unwrap();
-        assert_eq!(p.blocks[0].size, Size::L);
-        assert_eq!(p.period, Period::Week);
     }
     #[test]
-    fn prices_and_changes_read_like_the_mockup() {
-        assert_eq!(format_price(67412.4, "USD"), "$67,412");
-        assert_eq!(format_price(171.3, "USD"), "$171.30");
-        assert_eq!(format_price(0.15234, "EUR"), "€0.1523");
-        assert_eq!(format_change(2.144), "▲ 2.14%");
-        assert_eq!(format_change(-0.82), "▼ 0.82%");
-        let q = quote_from_series("BTC", vec![100., 110., 105.]).unwrap();
-        assert!((q.change_pct - 5.).abs() < 1e-9);
-        assert_eq!((q.high, q.low), (110., 100.));
+    fn saved_crypto_widgets_are_dropped_on_load() {
+        let p: WidgetPrefs = serde_json::from_str(
+            r#"{"text":["weather","crypto","smart"],"blocks":[{"kind":"crypto","size":"s"},{"kind":"weather","size":"m"}],"exchange":"kraken","period":"7d"}"#,
+        )
+        .unwrap();
+        assert_eq!(p.text, vec![Kind::Weather, Kind::Smart]);
+        assert_eq!(
+            p.blocks,
+            vec![Block {
+                kind: Kind::Weather,
+                size: Size::M
+            }]
+        );
     }
     #[test]
     fn forecast_parses_open_meteo_payload() {

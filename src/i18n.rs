@@ -330,10 +330,16 @@ mod tests {
         );
         assert_eq!(Language::Zh.t("hidden"), "已隐藏");
         assert_eq!(Language::De.category("Gaming"), "Spiele");
-        assert_eq!(Language::En.greeting(15, ""), "Good afternoon.");
-        assert_eq!(Language::En.greeting(15, "  Ana "), "Good afternoon, Ana.");
-        assert_eq!(Language::Es.greeting(2, "Ana"), "¿Aún despiertos, Ana?");
-        assert_eq!(Language::Zh.greeting(20, "小明"), "小明，晚上好。");
+        assert_eq!(
+            Language::En.greeting(15, ""),
+            "All systems go this afternoon."
+        );
+        assert_eq!(
+            Language::En.greeting(15, "  Ana "),
+            "Uptime looking good, Ana."
+        );
+        assert_eq!(Language::Es.greeting(2, "Ana"), "¿Sigues en línea, Ana?");
+        assert_eq!(Language::Zh.greeting(20, "小明"), "小明，晚间已登录。");
     }
     #[test]
     fn clock_and_date_follow_the_selected_locale() {

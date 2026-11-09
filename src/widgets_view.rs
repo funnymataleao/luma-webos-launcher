@@ -13,8 +13,6 @@ use crate::{
     },
 };
 
-const GREEN: u32 = 0x8fe3a8;
-const RED: u32 = 0xffa98f;
 /// Block top before scroll: 2 px under the old weather card, same bottom edge.
 const BLOCK_TOP: f32 = WEATHER_TOP + 2.;
 /// Index for previews: never focused, never a real block.
@@ -25,9 +23,6 @@ fn ts(assets: &Assets, size: f32, weight: u16) -> TextStyle {
 }
 fn td(assets: &Assets, size: f32) -> TextStyle {
     weather_type(assets, size, 700, true)
-}
-fn trend(pct: f64) -> Color {
-    c(if pct >= 0. { GREEN } else { RED }, 1.)
 }
 /// Text with a soft dark copy under it, so light type reads on any sky.
 fn lifted(out: &mut Scene, value: &str, r: Rect, style: TextStyle, color: Color, center: bool) {
@@ -51,7 +46,6 @@ fn width(assets: &Assets, value: &str, style: TextStyle) -> f32 {
 pub(super) fn available(state: &State, kind: Kind) -> bool {
     match kind {
         Kind::Weather => state.preferences.show_weather,
-        Kind::Crypto => true,
         Kind::Hdmi => !state.inventory.inputs.is_empty(),
         Kind::Smart => !state.preferences.smart_home.server_url.is_empty(),
     }
@@ -174,10 +168,6 @@ pub(super) fn block(
     let whole = match b.kind {
         Kind::Weather => {
             weather_block(out, state, assets, b.size, r);
-            true
-        }
-        Kind::Crypto => {
-            crypto_block(out, state, assets, b.size, r);
             true
         }
         Kind::Hdmi => hdmi_block(out, state, assets, index, b.size, r),
@@ -647,348 +637,6 @@ fn days(
     }
 }
 
-// ------------------------------------------------------------------ crypto
-
-fn coin_disc(out: &mut Scene, assets: &Assets, symbol: &str, x: f32, y: f32, d: f32) {
-    let (_, color, glyph) = w::coin(symbol);
-    let r = Rect::new(x, y, d, d);
-    out.shape(r, d / 2., c(color, 1.));
-    // Never under the 18 px TV minimum, even in the 26 px text-line disc.
-    let g = (d * 0.6).max(18.);
-    let style = ts(assets, g, 600);
-    out.text(
-        glyph,
-        Rect::new(x, y + (d - g * 1.36) / 2., d, g * 1.36),
-        style,
-        WHITE,
-        true,
-    );
-}
-fn pair_quote(prefs: &w::WidgetPrefs) -> &str {
-    match (prefs.exchange, prefs.quote.as_str()) {
-        (w::Exchange::Binance | w::Exchange::Bybit | w::Exchange::Okx, "USD") => "USDT",
-        (_, q) => q,
-    }
-}
-fn price(state: &State, value: f64) -> String {
-    w::format_price(value, &state.preferences.widgets.quote)
-}
-/// A line through `series` (oldest first) with an optional soft area below.
-/// The renderer has no line primitive: the line is a chain of small discs,
-/// the area a run of 2 px vertical gradients.
-pub(super) fn sparkline(
-    out: &mut Scene,
-    series: &[f64],
-    r: Rect,
-    color: u32,
-    line: f32,
-    area: bool,
-) {
-    if series.len() < 2 || r.w < 4. {
-        return;
-    }
-    let lo = series.iter().copied().fold(f64::MAX, f64::min);
-    let hi = series.iter().copied().fold(f64::MIN, f64::max);
-    let span = (hi - lo).max(hi.abs() * 1e-6).max(1e-12);
-    let value = |u: f32| {
-        let p = u * (series.len() - 1) as f32;
-        let i = (p.floor() as usize).min(series.len() - 2);
-        let k = (p - i as f32) as f64;
-        series[i] * (1. - k) + series[i + 1] * k
-    };
-    let y_of = |v: f64| r.y + r.h - ((v - lo) / span) as f32 * r.h;
-    let steps = (r.w / 2.).ceil() as usize;
-    if area {
-        for k in 0..steps {
-            let x = r.x + k as f32 * 2.;
-            let y = y_of(value((k as f32 * 2. / r.w).min(1.)));
-            out.draw.push(Draw::RoundedGradient(
-                Rect::new(x, y, 2.4, r.y + r.h - y),
-                0.,
-                c(color, 0.26),
-                c(color, 0.),
-            ));
-        }
-    }
-    let half = line / 2.;
-    let mut prev: Option<(f32, f32)> = None;
-    for k in 0..=steps {
-        let u = (k as f32 * 2. / r.w).min(1.);
-        let p = (r.x + u * r.w, y_of(value(u)));
-        let from = prev.unwrap_or(p);
-        let dist = ((p.0 - from.0).powi(2) + (p.1 - from.1).powi(2)).sqrt();
-        let n = (dist / (line * 0.45)).ceil().max(1.) as usize;
-        for j in 1..=n {
-            let t = j as f32 / n as f32;
-            let (x, y) = (from.0 + (p.0 - from.0) * t, from.1 + (p.1 - from.1) * t);
-            out.shape(
-                Rect::new(x - half, y - half, line, line),
-                half,
-                c(color, 1.),
-            );
-        }
-        prev = Some(p);
-    }
-}
-fn crypto_status(state: &State) -> &'static str {
-    if state.widget_data.quotes_failed {
-        "Prices unavailable"
-    } else {
-        "Loading prices"
-    }
-}
-fn crypto_block(out: &mut Scene, state: &State, assets: &Assets, size: Size, r: Rect) {
-    out.glass(r, RADIUS);
-    let prefs = &state.preferences.widgets;
-    let coins = prefs.ordered_coins();
-    match size {
-        Size::S => {
-            let symbol = &coins[0];
-            coin_disc(out, assets, symbol, r.x + 22., r.y + 22., 34.);
-            out.text(
-                symbol,
-                Rect::new(r.x + 66., r.y + 24., 100., 30.),
-                ts(assets, 22., 600),
-                WHITE,
-                false,
-            );
-            out.text(
-                prefs.exchange.short(),
-                Rect::new(r.x + r.w - 22. - 120., r.y + 26., 120., 26.),
-                ts(assets, 18., 500).right(),
-                c(0xffffff, 0.7),
-                false,
-            );
-            let Some(q) = state.widget_data.quote(symbol) else {
-                out.text(
-                    crypto_status(state),
-                    Rect::new(r.x + 22., r.y + 80., r.w - 44., 30.),
-                    ts(assets, 20., 500),
-                    c(0xffffff, 0.7),
-                    false,
-                );
-                return;
-            };
-            let style = td(assets, 40.);
-            out.text(
-                clip_weather_line(&price(state, q.price), r.w - 44., style, assets),
-                Rect::new(r.x + 22., r.y + 68., r.w - 44., 48.),
-                style,
-                WHITE,
-                false,
-            );
-            out.text(
-                format!(
-                    "{} · {}",
-                    w::format_change(q.change_pct),
-                    prefs.period.label().to_lowercase()
-                ),
-                Rect::new(r.x + 22., r.y + 118., r.w - 44., 28.),
-                ts(assets, 20., 500),
-                trend(q.change_pct),
-                false,
-            );
-            sparkline(
-                out,
-                &q.series,
-                Rect::new(r.x + 22., r.y + r.h - 18. - 110., r.w - 44., 104.),
-                if q.change_pct >= 0. { GREEN } else { RED },
-                3.,
-                true,
-            );
-        }
-        Size::M => {
-            let inner = Rect::new(r.x + 24., r.y + 18., r.w - 48., r.h - 36.);
-            let row = 70.;
-            let gap = (inner.h - 3. * row) / 2.;
-            for (i, symbol) in coins.iter().take(3).enumerate() {
-                let y = inner.y + i as f32 * (row + gap);
-                if i > 0 {
-                    out.shape(
-                        Rect::new(inner.x, y - gap / 2., inner.w, 1.),
-                        0.,
-                        c(0xffffff, 0.08),
-                    );
-                }
-                coin_row(
-                    out,
-                    state,
-                    assets,
-                    symbol,
-                    Rect::new(inner.x, y, inner.w, row),
-                    true,
-                );
-            }
-        }
-        _ => {
-            let symbol = &coins[0];
-            let left = Rect::new(r.x + 24., r.y + 22., 520., r.h - 44.);
-            coin_disc(out, assets, symbol, left.x, left.y, 36.);
-            let name = w::coin(symbol).0;
-            let ns = ts(assets, 22., 600);
-            let name = if name.is_empty() {
-                symbol.as_str()
-            } else {
-                name
-            };
-            out.text(
-                name,
-                Rect::new(left.x + 48., left.y + 3., 200., 30.),
-                ns,
-                WHITE,
-                false,
-            );
-            out.text(
-                format!(
-                    "{symbol}/{} · {}",
-                    pair_quote(prefs),
-                    prefs.exchange.short()
-                ),
-                Rect::new(
-                    left.x + 48. + width(assets, name, ns) + 12.,
-                    left.y + 6.,
-                    300.,
-                    26.,
-                ),
-                ts(assets, 18., 500),
-                c(0xffffff, 0.7),
-                false,
-            );
-            if let Some(q) = state.widget_data.quote(symbol) {
-                let big = td(assets, 48.);
-                let p = price(state, q.price);
-                out.text(
-                    &p,
-                    Rect::new(left.x, left.y + 44., 360., 60.),
-                    big,
-                    WHITE,
-                    false,
-                );
-                out.text(
-                    format!(
-                        "{} · {}",
-                        w::format_change(q.change_pct),
-                        prefs.period.label().to_lowercase()
-                    ),
-                    Rect::new(
-                        left.x + width(assets, &p, big) + 14.,
-                        left.y + 66.,
-                        220.,
-                        28.,
-                    ),
-                    ts(assets, 20., 500),
-                    trend(q.change_pct),
-                    false,
-                );
-                sparkline(
-                    out,
-                    &q.series,
-                    Rect::new(left.x, left.y + 124., left.w, left.h - 128.),
-                    if q.change_pct >= 0. { GREEN } else { RED },
-                    3.,
-                    true,
-                );
-            } else {
-                out.text(
-                    crypto_status(state),
-                    Rect::new(left.x, left.y + 60., left.w, 30.),
-                    ts(assets, 20., 500),
-                    c(0xffffff, 0.7),
-                    false,
-                );
-            }
-            let x = left.x + left.w + 24.;
-            out.shape(
-                Rect::new(x, r.y + 22., 1., r.h - 44.),
-                0.,
-                c(0xffffff, 0.08),
-            );
-            let list = Rect::new(x + 24., r.y + 22., r.x + r.w - 24. - x - 24., r.h - 44.);
-            let rest: Vec<&String> = coins.iter().skip(1).take(3).collect();
-            let row = 56.;
-            let gap = (list.h - 3. * row) / 2.;
-            for (i, symbol) in rest.into_iter().enumerate() {
-                let y = list.y + i as f32 * (row + gap);
-                coin_row(
-                    out,
-                    state,
-                    assets,
-                    symbol,
-                    Rect::new(list.x, y, list.w, row),
-                    false,
-                );
-            }
-        }
-    }
-}
-/// Coin row of the M and L widgets: disc, symbol (and name), price and change.
-fn coin_row(out: &mut Scene, state: &State, assets: &Assets, symbol: &str, r: Rect, full: bool) {
-    let d = if full { 40. } else { 32. };
-    let mid = r.y + r.h / 2.;
-    coin_disc(out, assets, symbol, r.x, mid - d / 2., d);
-    let x = r.x + d + if full { 14. } else { 12. };
-    if full {
-        out.text(
-            symbol,
-            Rect::new(x, mid - 29., 120., 30.),
-            ts(assets, 22., 600),
-            WHITE,
-            false,
-        );
-        out.text(
-            w::coin(symbol).0,
-            Rect::new(x, mid + 1., 120., 25.),
-            ts(assets, 18., 500),
-            c(0xffffff, 0.65),
-            false,
-        );
-    } else {
-        out.text(
-            symbol,
-            Rect::new(x, mid - 15., 100., 30.),
-            ts(assets, 22., 600),
-            WHITE,
-            false,
-        );
-    }
-    let Some(q) = state.widget_data.quote(symbol) else {
-        out.text(
-            "—",
-            Rect::new(r.x + r.w - 140., mid - 15., 140., 30.),
-            ts(assets, 22., 600).right(),
-            c(0xffffff, 0.5),
-            false,
-        );
-        return;
-    };
-    let ps = ts(assets, if full { 24. } else { 22. }, 600);
-    out.text(
-        price(state, q.price),
-        Rect::new(r.x + r.w - 160., mid - 30., 160., 32.),
-        ps.right(),
-        WHITE,
-        false,
-    );
-    out.text(
-        w::format_change(q.change_pct),
-        Rect::new(r.x + r.w - 160., mid + 2., 160., 25.),
-        ts(assets, 18., 500).right(),
-        trend(q.change_pct),
-        false,
-    );
-    if full {
-        let spark = Rect::new(x + 130., mid - 18., r.w - (x + 130. - r.x) - 180., 36.);
-        sparkline(
-            out,
-            &q.series,
-            spark,
-            if q.change_pct >= 0. { GREEN } else { RED },
-            2.5,
-            false,
-        );
-    }
-}
-
 // -------------------------------------------------------------------- HDMI
 
 fn device_colors(icon: &str) -> (u32, u32) {
@@ -1338,52 +986,22 @@ fn smart_block(
 
 // --------------------------------------------------------------- text line
 
-/// The parts of one text item: icon (or coin), text runs with colours.
-fn text_item(state: &State, kind: Kind) -> (Option<String>, Option<String>, Vec<(String, Color)>) {
+/// The parts of one text item: icon, text runs with colours.
+fn text_item(state: &State, kind: Kind) -> (Option<String>, Vec<(String, Color)>) {
     match kind {
         Kind::Weather => {
             let (mood, reading) = weather_now(state);
             let Some(r) = reading else {
-                return (
-                    Some("weather-sun".into()),
-                    None,
-                    vec![("Weather".into(), WHITE)],
-                );
+                return (Some("weather-sun".into()), vec![("Weather".into(), WHITE)]);
             };
             let wind = forecast(state).map_or(r.wind_speed / 3.6, |f| f.wind_ms);
             (
                 Some(hero_icon(mood, r).into()),
-                None,
                 vec![(
                     format!("{} · Wind {:.0} m/s", temp(state, r.temperature), wind),
                     WHITE,
                 )],
             )
-        }
-        Kind::Crypto => {
-            let symbol = state.preferences.widgets.main_coin.clone();
-            match state.widget_data.quote(&symbol) {
-                Some(q) => (
-                    None,
-                    Some(symbol),
-                    vec![
-                        (price(state, q.price), WHITE),
-                        (
-                            format!(
-                                "{} {:.1}%",
-                                if q.change_pct >= 0. { "▲" } else { "▼" },
-                                q.change_pct.abs()
-                            ),
-                            trend(q.change_pct),
-                        ),
-                    ],
-                ),
-                None => (
-                    None,
-                    Some(symbol),
-                    vec![(crypto_status(state).into(), c(0xffffff, 0.72))],
-                ),
-            }
         }
         Kind::Smart => {
             let lights = state
@@ -1407,20 +1025,16 @@ fn text_item(state: &State, kind: Kind) -> (Option<String>, Option<String>, Vec<
                 1 => "1 light on".to_owned(),
                 n => format!("{n} lights on"),
             });
-            (Some("thermometer".into()), None, vec![(line, WHITE)])
+            (Some("thermometer".into()), vec![(line, WHITE)])
         }
-        Kind::Hdmi => (None, None, vec![]),
+        Kind::Hdmi => (None, vec![]),
     }
 }
 /// Width of a text item, for layout and hit boxes.
 pub(super) fn text_item_width(assets: &Assets, state: &State, kind: Kind) -> f32 {
-    let (icon, coin, runs) = text_item(state, kind);
+    let (icon, runs) = text_item(state, kind);
     let style = ts(assets, 22., 500);
-    let lead = if icon.is_some() || coin.is_some() {
-        36.
-    } else {
-        0.
-    };
+    let lead = if icon.is_some() { 36. } else { 0. };
     lead + runs
         .iter()
         .map(|(t, _)| width(assets, t, style))
@@ -1455,14 +1069,10 @@ pub(super) fn text_line(out: &mut Scene, state: &State, assets: &Assets, z: &Zon
         if level > 0. {
             out.focus_ring(pill, pill.h / 2., level, state);
         }
-        let (icon, coin, runs) = text_item(state, kind);
+        let (icon, runs) = text_item(state, kind);
         let mut cx = x;
         if let Some(icon) = icon {
             out.icon(assets, &icon, Rect::new(cx, y + 9., 26., 26.), WHITE);
-            cx += 36.;
-        }
-        if let Some(symbol) = coin {
-            coin_disc(out, assets, &symbol, cx, y + 9., 26.);
             cx += 36.;
         }
         for (t, color) in runs {
@@ -1609,7 +1219,6 @@ pub(super) fn detail(out: &mut Scene, state: &State, assets: &Assets) {
     out.shape(Rect::new(0., 0., 1920., 1080.), 0., c(0x050608, 0.62));
     match d {
         Detail::Weather { tab } => weather_detail(out, state, assets, tab),
-        Detail::Crypto { coin } => crypto_detail(out, state, assets, coin),
     }
     if let Some(opened) = state.widget_detail_started
         && !state.preferences.reduced_motion
@@ -2082,188 +1691,4 @@ fn weather_detail(out: &mut Scene, state: &State, assets: &Assets, tab: usize) {
             );
         }
     }
-}
-fn crypto_detail(out: &mut Scene, state: &State, assets: &Assets, coin: usize) {
-    let prefs = &state.preferences.widgets;
-    let coins = prefs.ordered_coins();
-    let symbol = coins.get(coin).unwrap_or(&coins[0]).clone();
-    let panel = Rect::new(48., 48., 1824., 984.);
-    out.shadow(panel, 40., 80., 30., 0.5);
-    out.glass(panel, 40.);
-    close(out, state, assets, 1744., 96.);
-    let period = period_index(prefs.period);
-    tabs(
-        out,
-        state,
-        assets,
-        &["1H", "24H", "7D", "1Y"],
-        period,
-        1392.,
-        196.,
-    );
-    coin_disc(out, assets, &symbol, 112., 104., 56.);
-    let name = w::coin(&symbol).0;
-    let name = if name.is_empty() {
-        symbol.as_str()
-    } else {
-        name
-    };
-    let ns = ts(assets, 32., 600);
-    out.text(name, Rect::new(184., 110., 400., 44.), ns, WHITE, false);
-    out.text(
-        format!(
-            "{symbol} / {} · {}",
-            pair_quote(prefs),
-            prefs.exchange.short()
-        ),
-        Rect::new(184. + width(assets, name, ns) + 16., 118., 500., 30.),
-        ts(assets, 22., 500),
-        c(0xffffff, 0.65),
-        false,
-    );
-    let chart = Rect::new(152., 320., 1080., 350.);
-    if let Some(q) = state.widget_data.quote(&symbol) {
-        let big = td(assets, 96.);
-        let p = price(state, q.price);
-        out.text(&p, Rect::new(112., 168., 1100., 110.), big, WHITE, false);
-        let first = q.series.first().copied().unwrap_or(q.price);
-        out.text(
-            format!(
-                "{} {} · {:.2}%",
-                if q.change_pct >= 0. { "▲" } else { "▼" },
-                price(state, (q.price - first).abs()),
-                q.change_pct.abs()
-            ),
-            Rect::new(112. + width(assets, &p, big) + 22., 214., 520., 40.),
-            ts(assets, 28., 500),
-            trend(q.change_pct),
-            false,
-        );
-        // Grid lines and labels, then the line.
-        for k in 0..4 {
-            let v = q.high - (q.high - q.low) * k as f64 / 3.;
-            let y = chart.y + chart.h * k as f32 / 3.;
-            out.shape(Rect::new(chart.x, y, chart.w, 1.), 0., c(0xffffff, 0.08));
-            out.text(
-                price(state, v),
-                Rect::new(chart.x + chart.w + 20., y - 13., 160., 26.),
-                ts(assets, 18., 500),
-                c(0xffffff, 0.6),
-                false,
-            );
-        }
-        let marks = match prefs.period {
-            w::Period::Hour => ["−60 min", "−45 min", "−30 min", "−15 min", "Now"],
-            w::Period::Day => ["−24 h", "−18 h", "−12 h", "−6 h", "Now"],
-            w::Period::Week => ["−7 d", "−5 d", "−3 d", "−1 d", "Now"],
-            w::Period::Year => ["−12 mo", "−9 mo", "−6 mo", "−3 mo", "Now"],
-        };
-        for (k, m) in marks.iter().enumerate() {
-            let x = chart.x + chart.w * k as f32 / 4.;
-            out.text(
-                *m,
-                Rect::new(x - 60., chart.y + chart.h + 22., 120., 26.),
-                ts(assets, 18., 500),
-                c(0xffffff, 0.6),
-                true,
-            );
-        }
-        sparkline(
-            out,
-            &q.series,
-            chart,
-            if q.change_pct >= 0. { GREEN } else { RED },
-            4.,
-            true,
-        );
-        let label = prefs.period.label();
-        let stats = [
-            (format!("{label} HIGH"), price(state, q.high)),
-            (format!("{label} LOW"), price(state, q.low)),
-            (format!("{label} OPEN"), price(state, first)),
-            ("PRICES FROM".to_owned(), prefs.exchange.short().to_owned()),
-        ];
-        for (k, (l, v)) in stats.iter().enumerate() {
-            let r = Rect::new(112. + k as f32 * 274., 818., 250., 150.);
-            out.shape(r, RADIUS, c(0xffffff, 0.07));
-            out.border(r, RADIUS, 1., c(0xffffff, 0.08));
-            out.text(
-                l,
-                Rect::new(r.x + 24., r.y + 22., r.w - 48., 25.),
-                ts(assets, 18., 500).tracking(0.03),
-                c(0xffffff, 0.65),
-                false,
-            );
-            out.text(
-                v,
-                Rect::new(r.x + 24., r.y + 56., r.w - 48., 44.),
-                ts(assets, 32., 600),
-                WHITE,
-                false,
-            );
-        }
-    } else {
-        out.text(
-            crypto_status(state),
-            Rect::new(112., 190., 1000., 60.),
-            ts(assets, 40., 600),
-            c(0xffffff, 0.8),
-            false,
-        );
-    }
-    for (k, s) in coins.iter().take(4).enumerate() {
-        let r = Rect::new(1392., 300. + k as f32 * 112., 416., 96.);
-        let target = Target::WidgetCoin(k);
-        out.shape(r, 48., c(0xffffff, 0.07));
-        let t = choice(out, state, r, 48., k == coin, state.focus_level(&target));
-        let ink = blend(WHITE, accent_ink(state), t);
-        coin_disc(out, assets, s, r.x + 18., r.y + 20., 56.);
-        out.text(
-            s,
-            Rect::new(r.x + 90., r.y + 16., 140., 32.),
-            ts(assets, 24., 600),
-            ink,
-            false,
-        );
-        out.text(
-            w::coin(s).0,
-            Rect::new(r.x + 90., r.y + 50., 160., 25.),
-            ts(assets, 18., 500),
-            [ink[0], ink[1], ink[2], 0.7],
-            false,
-        );
-        if let Some(q) = state.widget_data.quote(s) {
-            out.text(
-                price(state, q.price),
-                Rect::new(r.x + r.w - 28. - 180., r.y + 16., 180., 32.),
-                ts(assets, 24., 600).right(),
-                ink,
-                false,
-            );
-            let up = q.change_pct >= 0.;
-            let tc = blend(
-                trend(q.change_pct),
-                c(if up { 0x1d5a2f } else { 0x7a2a1a }, 1.),
-                t,
-            );
-            out.text(
-                w::format_change(q.change_pct),
-                Rect::new(r.x + r.w - 28. - 180., r.y + 50., 180., 25.),
-                ts(assets, 18., 500).right(),
-                tc,
-                false,
-            );
-        }
-        out.control(target, r, false);
-    }
-    out.text(
-        "Up and down switch the coin.\nPick coins in Settings › Widgets.",
-        Rect::new(1392., 760., 416., 64.),
-        ts(assets, 20., 500).leading(1.4),
-        c(0xffffff, 0.65),
-        false,
-    );
-}
-fn period_index(p: w::Period) -> usize {
-    w::Period::ALL.iter().position(|x| *x == p).unwrap_or(1)
 }

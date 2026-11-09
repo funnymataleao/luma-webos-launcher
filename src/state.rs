@@ -174,7 +174,6 @@ pub enum Target {
     WidgetTextRemove(usize),
     WidgetAdd,
     WidgetTab(usize),
-    WidgetCoin(usize),
     WidgetClose,
     WidgetRow(usize),
     WidgetSize(usize),
@@ -568,7 +567,6 @@ pub struct State {
     pub kinetic_home: bool,
     pub kinetic_max: f32,
     pub kinetic_last: Instant,
-    pub bitcoin_usd: Option<String>,
     pub video_active: bool,
     pub video_frame_ready: bool,
     /// Start of the short still-to-live handoff after the hardware plane has a frame.
@@ -749,7 +747,6 @@ impl State {
             kinetic_home: false,
             kinetic_max: 0.,
             kinetic_last: Instant::now(),
-            bitcoin_usd: None,
             video_active: false,
             video_frame_ready: false,
             video_transition_started: None,
@@ -1654,8 +1651,10 @@ impl State {
         }
     }
 
-    pub fn set_inventory(&mut self, next: Inventory, warning: Option<String>) {
+    /// Returns true when LG apps were newly hidden and preferences need saving.
+    pub fn set_inventory(&mut self, next: Inventory, warning: Option<String>) -> bool {
         self.inventory.apps = next.apps;
+        let hid_lg_apps = self.preferences.hide_new_lg_apps(&self.inventory.apps);
         // Launch focus is the first Favorites tile, not the navigation.
         let first_load = self.loading;
         if let Some(warning) = warning {
@@ -1670,6 +1669,7 @@ impl State {
         if first_load && self.page == Page::Home && self.focus == Target::Nav(0) {
             self.focus = self.first_content();
         }
+        hid_lg_apps
     }
 
     pub fn reconcile_focus(&mut self) {

@@ -24,10 +24,15 @@ test('the shell home helper deliberately refuses takeover', async () => {
   assert.match(source, /^exit 1$/m);
 });
 
-test('autostart remains an explicit opt-in rather than a default takeover', async () => {
+test('autostart is an explicit opt-in boot hook for the public launcher id', async () => {
   const source = await file('autostart.sh');
-  assert.match(source, /system takeover and autostart are intentionally disabled/);
-  assert.match(source, /^exit 1$/m);
+  assert.match(source, /^APP_ID=com\.denisefremov\.luma$/m);
+  assert.match(source, /HOOK=\/var\/lib\/webosbrew\/init\.d\/65-luma/);
+  assert.match(source, /^  enable\)$/m);
+  assert.match(source, /^  disable\)$/m);
+  assert.match(source, /flock -n 9/);
+  assert.match(source, /luna:\/\/com\.webos\.service\.applicationmanager\/launch/);
+  assert.doesNotMatch(source, /com\.ecklf\.luma/);
 });
 
 test('wake script targets the public launcher id and not the original beta app', async () => {

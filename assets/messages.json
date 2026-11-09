@@ -308,32 +308,32 @@
     "pt": "Nome"
   },
   "greetingNightNamed": {
-    "en": "Still up, {name}?",
-    "de": "Noch wach, {name}?",
-    "es": "¿Aún despiertos, {name}?",
-    "zh": "{name}，还没睡吗？",
-    "pt": "Ainda acordado, {name}?"
+    "en": "Still online, {name}?",
+    "de": "Noch online, {name}?",
+    "es": "¿Sigues en línea, {name}?",
+    "zh": "{name}，还在线吗？",
+    "pt": "Ainda online, {name}?"
   },
   "morningNamed": {
-    "en": "Good morning, {name}.",
-    "de": "Guten Morgen, {name}.",
-    "es": "Buenos días, {name}.",
-    "zh": "{name}，早上好。",
-    "pt": "Bom dia, {name}."
+    "en": "Boot complete. Morning, {name}.",
+    "de": "Boot abgeschlossen. Morgen, {name}.",
+    "es": "Arranque completo. Buenos días, {name}.",
+    "zh": "启动完成。{name}，早上好。",
+    "pt": "Boot concluído. Bom dia, {name}."
   },
   "afternoonNamed": {
-    "en": "Good afternoon, {name}.",
-    "de": "Guten Tag, {name}.",
-    "es": "Buenas tardes, {name}.",
-    "zh": "{name}，下午好。",
-    "pt": "Boa tarde, {name}."
+    "en": "Uptime looking good, {name}.",
+    "de": "Uptime sieht gut aus, {name}.",
+    "es": "Buen uptime, {name}.",
+    "zh": "{name}，运行状态良好。",
+    "pt": "Uptime em dia, {name}."
   },
   "eveningNamed": {
-    "en": "Good evening, {name}.",
-    "de": "Guten Abend, {name}.",
-    "es": "Buenas noches, {name}.",
-    "zh": "{name}，晚上好。",
-    "pt": "Boa noite, {name}."
+    "en": "Logged in for the evening, {name}.",
+    "de": "Für den Abend eingeloggt, {name}.",
+    "es": "Sesión iniciada para la noche, {name}.",
+    "zh": "{name}，晚间已登录。",
+    "pt": "Conectado para a noite, {name}."
   },
   "english": {
     "en": "English",
@@ -504,32 +504,32 @@
     "pt": "Nenhum app corresponde a “{query}”. Tente outro nome."
   },
   "greetingNight": {
-    "en": "One more moment.",
-    "de": "Einen Moment noch.",
-    "es": "Un momento más.",
-    "zh": "稍等片刻。",
-    "pt": "Mais um momento."
+    "en": "Night mode engaged.",
+    "de": "Nachtmodus aktiv.",
+    "es": "Modo nocturno activado.",
+    "zh": "夜间模式已开启。",
+    "pt": "Modo noturno ativado."
   },
   "morning": {
-    "en": "Good morning.",
-    "de": "Guten Morgen.",
-    "es": "Buenos días.",
-    "zh": "早上好。",
-    "pt": "Bom dia."
+    "en": "System booted. Good morning.",
+    "de": "System gestartet. Guten Morgen.",
+    "es": "Sistema iniciado. Buenos días.",
+    "zh": "系统已启动。早上好。",
+    "pt": "Sistema iniciado. Bom dia."
   },
   "afternoon": {
-    "en": "Good afternoon.",
-    "de": "Guten Tag.",
-    "es": "Buenas tardes.",
-    "zh": "下午好。",
-    "pt": "Boa tarde."
+    "en": "All systems go this afternoon.",
+    "de": "Alle Systeme laufen.",
+    "es": "Todos los sistemas en marcha.",
+    "zh": "下午好，系统运行正常。",
+    "pt": "Todos os sistemas operando."
   },
   "evening": {
-    "en": "Good evening.",
-    "de": "Guten Abend.",
-    "es": "Buenas noches.",
-    "zh": "晚上好。",
-    "pt": "Boa noite."
+    "en": "Evening mode: online.",
+    "de": "Abendmodus: online.",
+    "es": "Modo noche: en línea.",
+    "zh": "晚间模式：在线。",
+    "pt": "Modo noite: online."
   },
   "aLittleHelp": {
     "en": "Loading your apps…",

@@ -1,4 +1,5 @@
-//! Context-aware, stable Rude greeting selection. Source copy retains every approved line.
+//! Context-aware, stable tech-themed weather headline selection (the "Tech" greeting style,
+//! stored as `rude` for compatibility with saved preferences).
 use crate::model::Preferences;
 use crate::weather::Reading;
 use serde::{Deserialize, Serialize};

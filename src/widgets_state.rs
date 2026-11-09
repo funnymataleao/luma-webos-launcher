@@ -4,10 +4,7 @@ use crate::{
     model::Input,
     smart_home::Entity,
     state::{Control, Direction, Effect, Page, SettingsLevel, State, Target, WEATHER_SECTION},
-    widgets::{
-        Block, COINS, Detail, Edit, Exchange, Grab, Kind, Period, QUOTES, REFRESH_CHOICES,
-        SettingsPage, Size, TEXT_MAX, ZONE_COLUMNS,
-    },
+    widgets::{Block, Detail, Edit, Grab, Kind, SettingsPage, Size, TEXT_MAX, ZONE_COLUMNS},
 };
 use std::time::Instant;
 
@@ -440,18 +437,6 @@ impl State {
             Target::WidgetTab(i) => {
                 match self.widget_detail.as_mut()? {
                     Detail::Weather { tab } => *tab = i,
-                    Detail::Crypto { .. } => {
-                        if let Some(p) = Period::ALL.get(i) {
-                            self.preferences.widgets.period = *p;
-                            return Some(self.widget_save());
-                        }
-                    }
-                }
-                vec![]
-            }
-            Target::WidgetCoin(k) => {
-                if let Some(Detail::Crypto { coin }) = self.widget_detail.as_mut() {
-                    *coin = k;
                 }
                 vec![]
             }
@@ -515,10 +500,6 @@ impl State {
                 }
                 self.widget_detail = Some(Detail::Weather { tab: 0 });
                 self.change_focus(Target::WidgetTab(0));
-            }
-            Kind::Crypto => {
-                self.widget_detail = Some(Detail::Crypto { coin: 0 });
-                self.change_focus(Target::WidgetCoin(0));
             }
             Kind::Hdmi => {
                 let id = hdmi_inputs(self).first().map(|i| i.id.clone());
@@ -609,15 +590,8 @@ impl State {
             }
             P::Text => (P::Root, 1),
             P::Add => (P::Root, 2),
-            P::Crypto => (P::Root, 4),
-            P::Hdmi => (P::Root, 5),
-            P::Smart => (P::Root, 6),
-            P::Exchange => (P::Crypto, 0),
-            P::Coins => (P::Crypto, 1),
-            P::MainCoin => (P::Crypto, 2),
-            P::Quote => (P::Crypto, 3),
-            P::Period => (P::Crypto, 4),
-            P::Refresh => (P::Crypto, 5),
+            P::Hdmi => (P::Root, 4),
+            P::Smart => (P::Root, 5),
             P::HdmiInput => (P::Hdmi, 0),
             P::SmartCamera => (P::Smart, 0),
             P::SmartDevices => (P::Smart, 1),
@@ -781,16 +755,6 @@ impl State {
                     ),
                     row("Add widget", None, true, false),
                     row("Weather", Some(city), true, false),
-                    row(
-                        "Crypto",
-                        Some(format!(
-                            "{} · {}",
-                            prefs.exchange.short(),
-                            prefs.coins.join(", ")
-                        )),
-                        true,
-                        false,
-                    ),
                     row("HDMI input", Some(hdmi), true, false),
                     row("Smart Home", Some(smart), true, false),
                 ]
@@ -803,58 +767,13 @@ impl State {
                 rows.push(row("Add to Home", None, false, false));
                 rows
             }
-            P::Text => [Kind::Weather, Kind::Crypto, Kind::Smart]
+            P::Text => Kind::TEXT
                 .iter()
                 .map(|k| {
                     let mut r = check(k.title(), prefs.text.contains(k));
                     r.dim = !prefs.text.contains(k) && prefs.text.len() >= TEXT_MAX;
                     r
                 })
-                .collect(),
-            P::Crypto => vec![
-                row("Exchange", Some(prefs.exchange.short().into()), true, false),
-                row("Coins", Some(prefs.coins.join(", ")), true, false),
-                row("Main coin", Some(prefs.main_coin.clone()), true, false),
-                row("Quote currency", Some(prefs.quote.clone()), true, false),
-                row(
-                    "Change period",
-                    Some(prefs.period.long().into()),
-                    true,
-                    false,
-                ),
-                row(
-                    "Refresh",
-                    Some(refresh_label(prefs.refresh_seconds)),
-                    true,
-                    false,
-                ),
-            ],
-            P::Exchange => Exchange::ALL
-                .iter()
-                .map(|e| check(e.title(), prefs.exchange == *e))
-                .collect(),
-            P::Coins => COINS
-                .iter()
-                .map(|c| {
-                    check(
-                        &format!("{}  ·  {}", c.0, c.1),
-                        prefs.coins.iter().any(|s| s == c.0),
-                    )
-                })
-                .collect(),
-            P::MainCoin => prefs
-                .coins
-                .iter()
-                .map(|s| check(s, prefs.main_coin == *s))
-                .collect(),
-            P::Quote => QUOTES.iter().map(|q| check(q, prefs.quote == *q)).collect(),
-            P::Period => Period::ALL
-                .iter()
-                .map(|p| check(p.long(), prefs.period == *p))
-                .collect(),
-            P::Refresh => REFRESH_CHOICES
-                .iter()
-                .map(|s| check(&refresh_label(*s), prefs.refresh_seconds == *s))
                 .collect(),
             P::Hdmi => vec![
                 row(
@@ -1060,9 +979,8 @@ impl State {
                     self.settings_push(SettingsLevel::Section, Target::WeatherToggle);
                     vec![]
                 }
-                4 => push(self, P::Crypto, 0),
-                5 => push(self, P::Hdmi, 0),
-                6 => push(self, P::Smart, 0),
+                4 => push(self, P::Hdmi, 0),
+                5 => push(self, P::Smart, 0),
                 _ => vec![],
             },
             P::Add => {
@@ -1112,57 +1030,12 @@ impl State {
                 self.widget_save()
             }
             P::Text => {
-                let kind = [Kind::Weather, Kind::Crypto, Kind::Smart][i.min(2)];
+                let kind = Kind::TEXT[i.min(Kind::TEXT.len() - 1)];
                 if let Some(at) = prefs.text.iter().position(|k| *k == kind) {
                     prefs.text.remove(at);
                 } else if prefs.text.len() < TEXT_MAX {
                     prefs.text.push(kind);
                 }
-                self.widget_save()
-            }
-            P::Crypto => push(
-                self,
-                [
-                    P::Exchange,
-                    P::Coins,
-                    P::MainCoin,
-                    P::Quote,
-                    P::Period,
-                    P::Refresh,
-                ][i.min(5)],
-                0,
-            ),
-            P::Exchange => {
-                prefs.exchange = Exchange::ALL[i.min(Exchange::ALL.len() - 1)];
-                self.widget_save()
-            }
-            P::Coins => {
-                let symbol = COINS[i.min(COINS.len() - 1)].0.to_owned();
-                if let Some(at) = prefs.coins.iter().position(|s| *s == symbol) {
-                    if prefs.coins.len() > 1 {
-                        prefs.coins.remove(at);
-                    }
-                } else if prefs.coins.len() < 8 {
-                    prefs.coins.push(symbol);
-                }
-                self.widget_save()
-            }
-            P::MainCoin => {
-                if let Some(s) = prefs.coins.get(i) {
-                    prefs.main_coin = s.clone();
-                }
-                self.widget_save()
-            }
-            P::Quote => {
-                prefs.quote = QUOTES[i.min(QUOTES.len() - 1)].into();
-                self.widget_save()
-            }
-            P::Period => {
-                prefs.period = Period::ALL[i.min(3)];
-                self.widget_save()
-            }
-            P::Refresh => {
-                prefs.refresh_seconds = REFRESH_CHOICES[i.min(REFRESH_CHOICES.len() - 1)];
                 self.widget_save()
             }
             P::Hdmi => match i {
@@ -1256,13 +1129,5 @@ impl State {
                 self.widget_save()
             }
         }
-    }
-}
-
-pub fn refresh_label(seconds: u32) -> String {
-    match seconds {
-        s if s < 60 => format!("Every {s} s"),
-        60 => "Every minute".into(),
-        s => format!("Every {} minutes", s / 60),
     }
 }

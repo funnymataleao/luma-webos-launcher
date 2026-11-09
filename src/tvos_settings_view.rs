@@ -503,7 +503,7 @@ fn root(out: &mut Scene, state: &State, assets: &Assets) {
     let hints = [
         "Language, clock and motion",
         "Video wallpaper collection",
-        "Weather, crypto, HDMI and Smart Home on Home",
+        "Weather, HDMI and Smart Home on Home",
         "Connected HDMI devices",
         "Home Assistant devices",
         "Device and launcher controls",
@@ -1335,7 +1335,7 @@ fn appearance(out: &mut Scene, state: &State, assets: &Assets) {
     );
     // Clip only Appearance content; miniature preview and Back stay unaffected.
     out.draw.push(Draw::Clip(None));
-    // Live 16:9 miniature with current wallpaper, tvOS navigation and Rude
+    // Live 16:9 miniature with current wallpaper, tvOS navigation and Tech
     // accent highlight. The miniature never overflows the glass safe inset.
     let start = out.draw.len();
     let p = Rect::new(
@@ -1408,7 +1408,7 @@ fn appearance(out: &mut Scene, state: &State, assets: &Assets) {
     }
     let headline_y = p.y + 112.;
     let headline_style = crate::view::heading_fixed(assets, 31., 800).tracking(-0.03);
-    let lead = "It's ";
+    let lead = "All ";
     out.text(
         lead,
         Rect::new(p.x + 32., headline_y, 90., 44.),
@@ -1418,7 +1418,7 @@ fn appearance(out: &mut Scene, state: &State, assets: &Assets) {
     );
     let text_x = p.x + 32. + assets.width(lead, headline_style);
     out.text(
-        "fucking alright.",
+        "systems nominal.",
         Rect::new(text_x, headline_y, p.w - (text_x - p.x) - 24., 44.),
         headline_style,
         if accent.use_headline {

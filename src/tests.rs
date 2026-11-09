@@ -10,7 +10,57 @@ use std::{collections::BTreeMap, path::PathBuf};
 fn ready() -> State {
     let mut state = State::new(Preferences::default());
     state.set_inventory(demo_inventory(), None);
+    // These tests exercise manual hiding; start from nothing hidden. The LG
+    // system apps hidden by default are covered by their own test below.
+    state.preferences.hidden.clear();
     state
+}
+
+#[test]
+fn lg_system_apps_are_hidden_once_and_unhiding_sticks() {
+    let mut state = State::new(Preferences::default());
+    assert!(state.set_inventory(demo_inventory(), None));
+    for id in [
+        "com.webos.app.browser",
+        "com.webos.app.igallery",
+        "com.webos.app.roomconnect",
+        "com.lgtvod.kr.app",
+    ] {
+        assert!(state.preferences.hidden.contains(&id.to_owned()), "{id}");
+    }
+    // Live TV and third-party apps stay visible.
+    for id in ["com.webos.app.livetv", "netflix", "org.jellyfin.webos"] {
+        assert!(!state.preferences.hidden.contains(&id.to_owned()), "{id}");
+    }
+    assert!(
+        state
+            .apps()
+            .iter()
+            .all(|app| !app.id.starts_with("com.webos.app.browser"))
+    );
+    // A user who unhides an LG app keeps it visible on the next inventory read.
+    state
+        .preferences
+        .hidden
+        .retain(|id| id != "com.webos.app.browser");
+    assert!(!state.set_inventory(demo_inventory(), None));
+    assert!(
+        !state
+            .preferences
+            .hidden
+            .contains(&"com.webos.app.browser".to_owned())
+    );
+    // Titles catch LG apps shipped under other IDs.
+    assert!(crate::model::is_lg_system_app(
+        "com.example.mc",
+        "Memory Care"
+    ));
+    assert!(crate::model::is_lg_system_app("x.y", "LG Link"));
+    assert!(crate::model::is_lg_system_app(
+        "com.webos.app.multiview",
+        "Multi View"
+    ));
+    assert!(!crate::model::is_lg_system_app("netflix", "Netflix"));
 }
 
 fn scene(state: &State) -> view::Scene {
@@ -537,7 +587,7 @@ fn greeting_subpage_opens_the_keyboard_and_back_restores_its_parent() {
     assert!(state.finish_text_input().is_empty());
     assert_eq!(
         crate::i18n::Language::En.greeting(9, &state.preferences.greeting_name),
-        "Good morning, Ana."
+        "Boot complete. Morning, Ana."
     );
     assert_eq!(state.subpage, Some(crate::state::Subpage::Greeting));
     assert!(state.back().is_empty());
@@ -2243,7 +2293,7 @@ fn settings_preview_illustrations_stay_in_panel_with_centered_copy() {
     for (section, name, summary) in [
         (0, "General", "Language, clock and motion"),
         (1, "Wallpaper", "Video wallpaper collection"),
-        (2, "Widgets", "Weather, crypto, HDMI and Smart Home on Home"),
+        (2, "Widgets", "Weather, HDMI and Smart Home on Home"),
         (3, "Inputs", "Connected HDMI devices"),
         (4, "Smart Home", "Home Assistant devices"),
         (5, "System", "Device and launcher controls"),

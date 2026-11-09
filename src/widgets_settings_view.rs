@@ -83,7 +83,7 @@ pub(super) fn preview(
     let (name, detail): (String, String) = match page {
         None | Some(P::Root) => (
             "Widgets".into(),
-            "Weather, crypto, HDMI and Smart Home on Home".into(),
+            "Weather, HDMI and Smart Home on Home".into(),
         ),
         Some(P::Add) => {
             let (kind, size) = state.widget_add;
@@ -114,10 +114,6 @@ pub(super) fn preview(
             "Smart Home".into(),
             "Camera and devices from Home Assistant".into(),
         ),
-        Some(_) => (
-            "Crypto".into(),
-            format!("{} · {}", prefs.exchange.title(), prefs.quote),
-        ),
     };
     let (mut blocks, mut line): (Vec<Block>, Vec<Kind>) = match page {
         None | Some(P::Root) => (prefs.blocks.clone(), prefs.text.clone()),
@@ -141,13 +137,6 @@ pub(super) fn preview(
             Vec::new(),
         ),
         Some(P::SmartSensor) => (Vec::new(), vec![Kind::Smart]),
-        Some(_) => (
-            vec![Block {
-                kind: Kind::Crypto,
-                size: Size::M,
-            }],
-            Vec::new(),
-        ),
     };
     // Same rule as Home: a widget without its source (no inputs, no Home
     // Assistant, weather off) is not shown.
@@ -171,7 +160,7 @@ pub(super) fn preview(
     } else {
         widgets_picture(out, state, assets, &blocks, &line, area);
     }
-    // Weather and crypto move, so the preview is never cached as static.
+    // Weather moves, so the preview is never cached as static.
     out.settings_sidebar_key = 0x5749_4447_0000 + page.map_or(0, |p| p as u64 + 1);
     let text_w = LEFT_W - 2. * S24;
     out.text(

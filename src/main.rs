@@ -717,48 +717,6 @@ fn script(
     })
 }
 
-fn bitcoin_worker() -> std::sync::mpsc::Receiver<Option<String>> {
-    let (sender, receiver) = std::sync::mpsc::channel();
-    std::thread::spawn(move || {
-        loop {
-            // The actual spot rate, never a synthetic placeholder.
-            let response = (|| {
-                let raw: String = ureq::get("https://api.coinbase.com/v2/prices/BTC-USD/spot")
-                    .header("Accept", "application/json")
-                    .call()
-                    .ok()?
-                    .body_mut()
-                    .read_to_string()
-                    .ok()?;
-                let data: serde_json::Value = serde_json::from_str(&raw).ok()?;
-                let price = data
-                    .get("data")?
-                    .get("amount")?
-                    .as_str()?
-                    .parse::<f64>()
-                    .ok()?;
-                if !price.is_finite() || price <= 0. {
-                    return None;
-                }
-                let value = format!("{:.0}", price);
-                let grouped = value
-                    .as_bytes()
-                    .rchunks(3)
-                    .rev()
-                    .map(|chunk| std::str::from_utf8(chunk).unwrap_or(""))
-                    .collect::<Vec<_>>()
-                    .join(",");
-                Some(grouped)
-            })();
-            if sender.send(response).is_err() {
-                break;
-            }
-            std::thread::sleep(std::time::Duration::from_secs(300));
-        }
-    });
-    receiver
-}
-
 fn main() {
     if std::env::args().nth(1).as_deref() == Some("--pad-watch") {
         pad_watch::run();
@@ -2295,7 +2253,6 @@ fn run() -> Result<(), String> {
         smart_home::auth_path(&preferences_path),
         state.preferences.smart_home.server_url.clone(),
     );
-    let bitcoin_updates = if webos { Some(bitcoin_worker()) } else { None };
     let platform = Platform::new(webos);
     effects(
         vec![Effect::Refresh, Effect::Root(None)],
@@ -2726,14 +2683,6 @@ fn run() -> Result<(), String> {
                 renderer.preload_stills(&paths);
             }
         }
-        if let Some(receiver) = &bitcoin_updates {
-            while let Ok(next) = receiver.try_recv() {
-                if state.bitcoin_usd != next {
-                    state.bitcoin_usd = next;
-                    state.dirty = true;
-                }
-            }
-        }
         state.dirty |= assets.artwork.poll();
         // Decode every app icon ahead of time: cards that enter before their
         // icon arrive grey and turn colored a moment later.
@@ -2757,7 +2706,9 @@ fn run() -> Result<(), String> {
                         options.test_extra_apps,
                         state.preferences.language,
                     );
-                    state.set_inventory(inventory, warning);
+                    if state.set_inventory(inventory, warning) {
+                        let _ = storage::save(&preferences_path, &state.preferences);
+                    }
                     if initial_focus
                         && state.focus == Target::Nav(0)
                         && state.page == state::Page::Home
