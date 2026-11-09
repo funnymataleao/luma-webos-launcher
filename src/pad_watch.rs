@@ -89,7 +89,40 @@ fn moonlight_in_front() -> bool {
     .contains(&format!("\"appId\":\"{MOONLIGHT}\""))
 }
 
+/// Luma starts this helper through Homebrew Channel's `exec` service, so it inherits that
+/// service's luna bus sockets and working directory. The service exits after a while, but as
+/// long as this long-lived helper holds those sockets the bus keeps the service registered and
+/// routes every later call to a process that no longer exists: app icons, the app list and the
+/// root features then wait until they time out. Keep only stdout/stderr (the log redirect).
+#[cfg(all(feature = "webos", unix))]
+fn detach_from_service() {
+    let inherited: Vec<i32> = std::fs::read_dir("/proc/self/fd")
+        .map(|entries| {
+            entries
+                .filter_map(|entry| entry.ok()?.file_name().to_str()?.parse().ok())
+                .filter(|fd| *fd > 2)
+                .collect()
+        })
+        .unwrap_or_default();
+    // SAFETY: closes inherited descriptors before this process opens any of its own;
+    // a descriptor that was only the read_dir handle is already closed and fails harmlessly.
+    unsafe {
+        for fd in inherited {
+            libc::close(fd);
+        }
+        let null = libc::open(c"/dev/null".as_ptr(), libc::O_RDONLY);
+        if null > 0 {
+            libc::dup2(null, 0);
+            libc::close(null);
+        }
+        libc::setsid();
+        libc::chdir(c"/".as_ptr());
+    }
+}
+
 pub fn run() -> ! {
+    #[cfg(all(feature = "webos", unix))]
+    detach_from_service();
     let _ = std::fs::write(PIDFILE, std::process::id().to_string());
     eprintln!("Luma pad watch started");
     let (sender, receiver) = mpsc::channel();
