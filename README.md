@@ -6,9 +6,23 @@ Luma replaces the cluttered LG Home with one calm screen: your favorite apps, li
 
 Free and open source (MIT). Fork it, change it, ship it.
 
+> [!NOTE]
+> **This is a fork.** It builds Luma **2.3.0** under its own app ID, **`com.archbtw.luma`**, so it
+> installs beside the original Luma (`com.denisefremov.luma`) with its own settings. What differs
+> from the original:
+>
+> - Video wallpapers are the default, and you can upload your own videos from a phone or computer.
+> - The Home headline and greetings are tech themed.
+> - LG's own apps start hidden.
+> - The crypto widget is removed.
+> - A command-line autostart hook (`autostart.sh`) is included.
+>
+> The promo video and most screenshots below show the original Luma, so headline text and widgets
+> look a little different from this build.
+
 <a href="https://github.com/funnymataleao/luma-webos-launcher/releases/download/v2.2.160/Luma-promo.mp4"><img src="docs/promo-preview.webp" width="100%" alt="Luma promo video"></a>
 
-▶ [Watch the full promo video (1 min)](https://github.com/funnymataleao/luma-webos-launcher/releases/download/v2.2.160/Luma-promo.mp4)
+▶ [Watch the original Luma promo video (1 min)](https://github.com/funnymataleao/luma-webos-launcher/releases/download/v2.2.160/Luma-promo.mp4)
 
 ![Home](docs/screenshots/home.jpg)
 
@@ -20,7 +34,7 @@ Free and open source (MIT). Fork it, change it, ship it.
 - Live video wallpapers, on by default: Apple and Amazon aerials played in hardware. Pick whole collections or single clips.
 - Your own video wallpapers: **Settings › Wallpaper › Upload Videos** shows a QR code. Open it on a phone or computer on the same network and pick MP4/MOV files (H.264 or HEVC). They play from the TV's storage, and **Only My Videos** rotates just your uploads.
 - Frosted-glass UI with one accent gradient, adjustable colors, heading and text fonts, and UI resolution (Auto / 4K / 1440p / 1080p).
-- A tech-themed headline that comments on the weather ("Thermal throttling: off."), plus a clock and date.
+- A tech-themed headline that comments on the weather ("Thermal throttling: off.", "Packet loss: rain."), plus a clock and date. Prefer a plain greeting? Switch **Settings › General › Greeting** from Tech to Classic (also tech themed: "System booted. Good morning.").
 - LG's own apps (Multi View, Gallery, Home Hub, Camera, Web Browser, LG Link, Sports, Memory Care and the like) start hidden. Live TV stays. Unhide any of them from **Apps › Hidden**.
 
 **Widgets**
@@ -99,11 +113,12 @@ Free and open source (MIT). Fork it, change it, ship it.
   </tr>
 </table>
 
-### Widgets
+### Widgets and your own videos
 
 <table>
   <tr>
     <td width="50%"><img src="docs/screenshots/weather.jpg" alt="Weather"></td>
+    <td width="50%"><img src="docs/screenshots/upload-videos.jpg" alt="Upload Videos: QR code and address for sending your own video wallpapers"></td>
   </tr>
 </table>
 
@@ -128,11 +143,11 @@ Free and open source (MIT). Fork it, change it, ship it.
   </tr>
 </table>
 
-## Support Luma
+## Support the original author
 
-Luma is built and maintained by one person in their free time. It's free and will stay free. Donations decide how much time goes into it: they keep updates coming, pay for test hardware and move the roadmap forward (Plex, more TV models, new widgets). If Luma makes your TV better, a coffee helps keep it alive.
+Luma is designed and maintained by one person in their free time, and this fork builds on that work. It's free and will stay free. Donations to the original author keep updates coming, pay for test hardware and move the roadmap forward (Plex, more TV models, new widgets). If Luma makes your TV better, a coffee helps keep it alive.
 
-Made by [Denis Efremov](https://denisefremov.com), an interface designer with 16+ years of experience and the maker of Luma and Rift, two free open-source launchers. Read the design story in the [Luma case study](https://denisefremov.com/work/luma.html).
+Luma was made by [Denis Efremov](https://denisefremov.com), an interface designer with 16+ years of experience and the maker of Luma and Rift, two free open-source launchers. Read the design story in the [Luma case study](https://denisefremov.com/work/luma.html).
 
 - ☕ **Ko-fi:** [ko-fi.com/dennis_oizo](https://ko-fi.com/dennis_oizo)
 - 🍵 **Buy Me a Coffee:** [buymeacoffee.com/denisefremov](https://buymeacoffee.com/denisefremov)
@@ -175,33 +190,47 @@ you only need one of the two.
 
 ## Install
 
-### Homebrew Channel
-
-Add this repository in Homebrew Channel › Settings › Repositories:
-
-```text
-https://github.com/funnymataleao/luma-webos-launcher/releases/latest/download/repo.json
-```
-
-Then install **Luma** and **Luma Player** from the list. The companion player is required for Jellyfin and Plex video playback.
-
 ### Manual (IPK)
 
-Download `com.archbtw.luma_2.3.0_arm.ipk` from [Releases](../../releases/latest) and install it with
-[webOS Dev Manager](https://github.com/webosbrew/dev-manager-desktop) or `ares-install`.
-To play Jellyfin and Plex videos, also install `com.archbtw.luma.player_0.0.11_all.ipk` from the same release.
+Download `com.archbtw.luma_2.3.0_arm.ipk` from [Releases](../../releases/latest), or build it yourself
+(see below), and install it with [webOS Dev Manager](https://github.com/webosbrew/dev-manager-desktop) or
+`ares-install`. To play Jellyfin and Plex videos, also install `com.archbtw.luma.player_0.0.11_all.ipk`.
+
+```sh
+ares-install --device tv com.archbtw.luma_2.3.0_arm.ipk
+ares-install --device tv com.archbtw.luma.player_0.0.11_all.ipk
+```
+
+Coming from the original Luma? It stays installed as a separate app (`com.denisefremov.luma`) with its
+own settings and its own companion player. Once you're happy with this build, disable the original's
+autostart or Root features and uninstall it. The old player only works with the old app.
+
+### Homebrew Channel
+
+`pnpm run package` also writes a Homebrew Channel feed (`dist/repo.json`). Once a release with that feed
+is published on this repository, add it in Homebrew Channel › Settings › Repositories:
+
+```text
+https://github.com/archuser-del/luma-webos-launcher/releases/latest/download/repo.json
+```
+
+The original author's feed (`funnymataleao/luma-webos-launcher`) installs the original
+`com.denisefremov.luma`, not this build.
 
 To use Moonlight, install Moonlight for webOS and pair it with your PC first, then open Luma.
 
 ## Build from source
 
-Requirements: Rust 1.88+, Node 22+, pnpm 10, SDL2 (for the desktop preview).
+Requirements: Rust 1.88+ with the `armv7-unknown-linux-gnueabi` target, Node 22+, pnpm 10,
+`woff2_decompress` and Python with fontTools (for `pnpm assets`), and SDL2 (for the desktop preview).
+`nix develop` provides all of them.
 
 ```sh
+rustup target add armv7-unknown-linux-gnueabi
 pnpm install --frozen-lockfile
-pnpm sdk                     # downloads the webOS NDK and runtime into .build/
+pnpm sdk                     # downloads the webOS NDK into .build/
 export WEBOS_NDK="$PWD/.build/toolchain/arm-webos-linux-gnueabi_sdk-buildroot"
-pnpm run package             # → dist/*.ipk, sha256sums, repo.json
+pnpm run package             # → dist/com.archbtw.luma_2.3.0_arm.ipk, player IPK, sha256sums, repo.json
 ```
 
 Desktop preview with sample data (no TV needed):
@@ -223,7 +252,7 @@ Tests: `pnpm test`. Lint and format: `pnpm check`, `pnpm format`. More in [devel
 | Networking          | `ureq` + `rustls`, `tungstenite` WebSocket (Home Assistant), `mdns-sd` and UDP discovery         |
 | Moonlight pairing   | `rcgen`, `rsa`, `x509-parser`, AES (GameStream / Sunshine protocol)                              |
 | QR codes            | `qrcode`                                                                                         |
-| Video wallpapers    | webOS hardware media pipeline (C helpers in `native/`), HEVC and H.264                           |
+| Video wallpapers    | webOS hardware media pipeline (C helpers in `native/`), HEVC and H.264, streamed or uploaded     |
 | Player              | Separate web app: HTML5 video, HLS, vanilla JS                                                   |
 | TV integration      | Luna service bus, Homebrew Channel elevated service                                              |
 | Build tooling       | pnpm, Node, `sharp`, `@webos-tools/cli`, Nix flake, oxlint / oxfmt, Changesets                   |
@@ -235,6 +264,8 @@ Tests: `pnpm test`. Lint and format: `pnpm check`, `pnpm format`. More in [devel
 - Settings, favorites and tokens stay in a local JSON file on the TV.
 - No API keys are built in. Sign-ins go through Quick Connect, Plex link codes or a QR code on your phone.
 - Weather uses the location you choose, never IP geolocation.
+- Uploaded videos stay on the TV. The upload page is only reachable on your local network, needs the
+  one-time code in its address, and stops when you leave **Upload Videos** (or after 30 minutes).
 
 ## Fonts and assets
 
@@ -243,13 +274,16 @@ Brand logos belong to their owners. Luma is not affiliated with LG, Apple, Amazo
 
 ## Credits
 
-Luma started as a fork of **[ecklf/lg-luma](https://github.com/ecklf/lg-luma)** by ecklf and contributors. Thank you for the native renderer, the build pipeline and the original idea.
+This build is a fork of **[Luma](https://github.com/funnymataleao/luma-webos-launcher)** by Denis Efremov, which started as a fork of **[ecklf/lg-luma](https://github.com/ecklf/lg-luma)** by ecklf and contributors. Thank you for the native renderer, the build pipeline and the original idea. The command-line autostart hook comes from ecklf/lg-luma.
 
 Also thanks to [webOS Homebrew](https://www.webosbrew.org/), [Moonlight](https://moonlight-stream.org/), [Sunshine](https://github.com/LizardByte/Sunshine) / [Apollo](https://github.com/ClassicOldSong/Apollo), [Jellyfin](https://jellyfin.org/) and [Home Assistant](https://www.home-assistant.io/).
 
 ## How this was made
 
-Most of the code in this fork was written with AI coding assistants (Claude Code and OpenAI Codex), directed and tested on a real LG OLED C1 by the maintainer. Every change was checked on the TV before release.
+Most of the original Luma was written with AI coding assistants (Claude Code and OpenAI Codex), directed and tested on a real LG OLED C1 by its maintainer, who checked every change on the TV before release.
+
+The 2.3.0 changes in this fork were written with Claude Code and checked with the test suite, desktop
+rendering and a browser test of the upload page. They have not been tested on a TV yet.
 
 ## License
 

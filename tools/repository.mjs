@@ -14,7 +14,7 @@ const requestedTag =
 if (requestedTag && requestedTag !== tag)
   throw new Error(`Release tag must be ${tag}, matching the packaged app version.`);
 
-const repository = process.env.GITHUB_REPOSITORY || 'funnymataleao/luma-webos-launcher';
+const repository = process.env.GITHUB_REPOSITORY || 'archuser-del/luma-webos-launcher';
 if (!/^[\w.-]+\/[\w.-]+$/.test(repository)) throw new Error('Invalid GitHub repository name.');
 const sourceUrl = `https://github.com/${repository}`;
 const releaseUrl = `${sourceUrl}/releases/latest/download`;
