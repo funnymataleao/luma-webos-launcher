@@ -312,7 +312,7 @@ pub(super) fn draw(out: &mut Scene, state: &State, assets: &Assets, art: Art, st
 fn stills(state: &State, assets: &Assets) -> [String; 3] {
     let n = crate::video_catalog::all().len().max(1);
     let first = state.preferences.video_index.min(n - 1);
-    [0, 7, 19].map(|step| assets.path(format!("video-stills/{}.jpg", (first + step) % n)))
+    [0, 7, 19].map(|step| assets.video_still((first + step) % n))
 }
 
 fn general(p: &mut Pen, state: &State, t: f64) {

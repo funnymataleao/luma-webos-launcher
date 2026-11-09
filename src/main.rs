@@ -1,6 +1,7 @@
 mod aerial_video;
 mod app_artwork;
 mod branding;
+mod custom_videos;
 mod diagnostics;
 mod font;
 #[cfg(all(feature = "webos", target_os = "linux", target_arch = "arm"))]
@@ -402,6 +403,12 @@ fn effects(
                 jellyfin_form_stop();
             }
             Effect::JellyfinAddress => jellyfin_form_start(),
+            Effect::VideoUploadStart => {
+                *VIDEO_UPLOAD.lock().unwrap() = Some(custom_videos::start());
+            }
+            Effect::VideoUploadStop => {
+                VIDEO_UPLOAD.lock().unwrap().take();
+            }
             Effect::PlexLink => {
                 if state.preferences.plex.client_id.is_empty() {
                     state.preferences.plex.client_id = phone_link::random_hex()[..32].to_owned();
@@ -837,6 +844,44 @@ struct JellyfinForm {
     canceled: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 static JELLYFIN_FORM: std::sync::Mutex<Option<JellyfinForm>> = std::sync::Mutex::new(None);
+/// Settings › Wallpaper › Upload Videos page server, while the page is open.
+static VIDEO_UPLOAD: std::sync::Mutex<Option<custom_videos::Server>> = std::sync::Mutex::new(None);
+
+/// Apply what the video upload page did: its address, new and deleted clips.
+fn video_upload_tick(state: &mut State, preferences_path: &std::path::Path) {
+    let mut events = vec![];
+    if let Some(server) = VIDEO_UPLOAD.lock().unwrap().as_ref() {
+        while let Ok(event) = server.events.try_recv() {
+            events.push(event);
+        }
+    }
+    for event in events {
+        state.dirty = true;
+        match event {
+            custom_videos::Event::Ready(Ok(link)) => {
+                state.video_upload_qr = phone_link::qr_matrix(&link);
+                state.video_upload_link = Some(link);
+            }
+            custom_videos::Event::Ready(Err(error)) => {
+                state.video_upload_status = Some((error, true));
+            }
+            custom_videos::Event::Added(id) => {
+                custom_videos::reload();
+                if let Some(index) = custom_videos::catalog_index(&id) {
+                    let name = video_catalog::all()[index].name.clone();
+                    state.video_uploaded(index, &name);
+                    let _ = storage::save(preferences_path, &state.preferences);
+                }
+            }
+            custom_videos::Event::Removed => {
+                custom_videos::reload();
+                state.refresh_video_catalog();
+                state.video_upload_status = Some(("Video deleted.".into(), false));
+                let _ = storage::save(preferences_path, &state.preferences);
+            }
+        }
+    }
+}
 
 fn jellyfin_form_stop() {
     if let Some(form) = JELLYFIN_FORM.lock().unwrap().take() {
@@ -1801,6 +1846,9 @@ fn run() -> Result<(), String> {
     } else {
         default_preferences.clone()
     };
+    // Uploaded video wallpapers join the catalog before preferences load, so
+    // their saved selection survives normalization.
+    custom_videos::init(&preferences_path);
     // Start the preview with the user's current choices, but keep test favorites
     // and hidden placeholders out of their normal preferences file.
     let initial_preferences = if options.test_extra_apps > 0
@@ -2790,6 +2838,7 @@ fn run() -> Result<(), String> {
             state.movie_thumbs(id, images);
         }
         jellyfin_tick(&mut state, &preferences_path, &platform);
+        video_upload_tick(&mut state, &preferences_path);
         plex_tick(&mut state, &preferences_path, &platform);
         // Poll a native worker rather than doing any media I/O in the render loop.
         while let Some(update) = player_backend::poll() {
@@ -3624,6 +3673,7 @@ fn run() -> Result<(), String> {
             state.movie_thumbs(id, images);
         }
         jellyfin_tick(&mut state, &preferences_path, &platform);
+        video_upload_tick(&mut state, &preferences_path);
         plex_tick(&mut state, &preferences_path, &platform);
         moonlight_tick(&mut state, &preferences_path, &platform);
         library_tick(&mut state, &preferences_path);

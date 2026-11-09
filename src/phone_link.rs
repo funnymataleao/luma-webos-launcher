@@ -79,7 +79,7 @@ pub fn encode_form(pairs: &[(&str, &str)]) -> String {
     }
     s.finish()
 }
-fn escape_html(input: &str) -> String {
+pub fn escape_html(input: &str) -> String {
     input
         .replace('&', "&amp;")
         .replace('<', "&lt;")

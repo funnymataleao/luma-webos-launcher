@@ -315,7 +315,8 @@ impl Default for Preferences {
             favorites: None,
             hidden: vec![],
             lg_auto_hidden: BTreeSet::new(),
-            background: "dunes".into(),
+            // Video wallpapers (bundled aerials and the viewer's own uploads).
+            background: "video".into(),
             video_index: 0,
             video_sources_mask: crate::video_catalog::ALL_SOURCES,
             video_excluded: BTreeSet::new(),

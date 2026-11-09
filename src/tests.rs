@@ -17,6 +17,44 @@ fn ready() -> State {
 }
 
 #[test]
+fn video_wallpapers_are_the_default() {
+    assert_eq!(Preferences::default().background, "video");
+}
+
+#[test]
+fn uploaded_videos_join_the_catalog_and_can_play_alone() {
+    let builtin = crate::video_catalog::all().len();
+    let mut state = ready();
+    crate::video_catalog::set_custom(vec![crate::video_catalog::Video::custom(
+        "custom-0123456789abcdef0123456789abcdef".into(),
+        "Beach".into(),
+        std::path::Path::new("/tmp/beach.mp4"),
+        false,
+    )]);
+    state.refresh_video_catalog();
+    let index = builtin;
+    assert_eq!(crate::video_catalog::all()[index].name, "Beach");
+    assert!(
+        crate::video_catalog::groups(5)
+            .iter()
+            .any(|g| g.2.contains(&index))
+    );
+    state.preferences.background = "dunes".into();
+    assert_eq!(state.video_uploaded(index, "Beach"), vec![Effect::Save]);
+    assert_eq!(state.preferences.background, "video");
+    assert_eq!(state.preferences.video_index, index);
+    state.focus = Target::VideoUploadOnlyMine;
+    assert_eq!(state.activate(), vec![Effect::Save]);
+    assert_eq!(
+        crate::video_catalog::selected(&state.preferences.video_excluded),
+        vec![index]
+    );
+    crate::video_catalog::set_custom(vec![]);
+    state.refresh_video_catalog();
+    assert!(state.preferences.video_excluded.len() < builtin);
+}
+
+#[test]
 fn lg_system_apps_are_hidden_once_and_unhiding_sticks() {
     let mut state = State::new(Preferences::default());
     assert!(state.set_inventory(demo_inventory(), None));
@@ -92,6 +130,8 @@ fn controls(state: &State) -> Vec<crate::state::Control> {
 #[test]
 fn remote_routes_from_header_and_back_through_settings() {
     let mut state = ready();
+    // A photo wallpaper: with video, Up first stops on the clip title.
+    state.preferences.background = "dunes".into();
     state.direction(Direction::Down, &controls(&state));
     assert_eq!(state.focus, Target::App("netflix".into()));
     state.direction(Direction::Up, &controls(&state));
@@ -1479,6 +1519,7 @@ fn video_wallpaper_mode_keeps_its_setting() {
 #[test]
 fn video_gallery_filters_selection_and_hold_are_independent() {
     let mut state = ready();
+    state.preferences.background = "dunes".into();
     state.open(2);
     state.focus = Target::Sidebar(1);
     state.activate();

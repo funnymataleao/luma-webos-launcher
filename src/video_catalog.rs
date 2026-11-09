@@ -1,41 +1,113 @@
-//! Source metadata and stable-id selection for streaming wallpapers.
+//! Source metadata and stable-id selection for streaming wallpapers, plus the
+//! viewer's own uploaded clips (see `custom_videos`), appended after the
+//! bundled catalog so bundled indices never move.
 use serde::Deserialize;
 use std::{
     collections::BTreeSet,
     hash::{DefaultHasher, Hash, Hasher},
-    sync::OnceLock,
+    sync::{OnceLock, RwLock},
 };
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Video {
     pub name: String,
     pub source: String,
-    /// Streamed by the hardware wallpaper on the TV.
+    /// Streamed by the hardware wallpaper on the TV: an HTTPS URL, or the
+    /// absolute path of an uploaded file.
     #[cfg(any(test, all(feature = "webos", target_os = "linux", target_arch = "arm")))]
     pub url: String,
     pub id: String,
     pub category: String,
+    /// HEVC instead of H.264. Amazon clips are HEVC by source.
+    #[serde(default)]
+    #[cfg_attr(
+        not(all(feature = "webos", target_os = "linux", target_arch = "arm")),
+        allow(dead_code)
+    )]
+    pub hevc: bool,
 }
-pub const ALL_SOURCES: u8 = 0b1111;
-pub const FILTERS: [(&str, &str); 5] = [
+impl Video {
+    /// An uploaded clip played from `file`.
+    pub fn custom(id: String, name: String, file: &std::path::Path, hevc: bool) -> Self {
+        #[cfg(not(any(test, all(feature = "webos", target_os = "linux", target_arch = "arm"))))]
+        let _ = file;
+        Self {
+            name,
+            source: CUSTOM_SOURCE.into(),
+            #[cfg(any(test, all(feature = "webos", target_os = "linux", target_arch = "arm")))]
+            url: file.to_string_lossy().into_owned(),
+            id,
+            category: CUSTOM_CATEGORY.into(),
+            hevc,
+        }
+    }
+    #[cfg_attr(
+        not(all(feature = "webos", target_os = "linux", target_arch = "arm")),
+        allow(dead_code)
+    )]
+    pub fn is_hevc(&self) -> bool {
+        self.hevc || self.source == "Amazon"
+    }
+    pub fn is_custom(&self) -> bool {
+        self.source == CUSTOM_SOURCE
+    }
+}
+pub const CUSTOM_SOURCE: &str = "Custom";
+pub const CUSTOM_CATEGORY: &str = "Your videos";
+pub const ALL_SOURCES: u8 = 0b1_1111;
+pub const FILTERS: [(&str, &str); 6] = [
     ("All", ""),
     ("Apple", "Apple"),
     ("Amazon", "Amazon"),
     ("Aerial Community", "Community (Aerial)"),
     ("RobinFrcd", "Community (RobinFrcd)"),
+    ("Uploaded", CUSTOM_SOURCE),
 ];
 
-pub fn all() -> &'static [Video] {
+fn builtin() -> &'static [Video] {
     static VIDEOS: OnceLock<Vec<Video>> = OnceLock::new();
     VIDEOS.get_or_init(|| {
         serde_json::from_str(include_str!("video_catalog.json"))
             .expect("The wallpaper catalog must be valid JSON")
     })
 }
+/// Bundled catalog plus uploaded clips. Replaced (never mutated) when the
+/// uploads change, so callers may keep the slice for the rest of a frame.
+#[cfg_attr(test, allow(dead_code))]
+static CURRENT: RwLock<Option<&'static [Video]>> = RwLock::new(None);
+// Tests run in parallel threads; each sees only the uploads it set itself.
+#[cfg(test)]
+thread_local! {
+    static TEST_CURRENT: std::cell::Cell<Option<&'static [Video]>> =
+        const { std::cell::Cell::new(None) };
+}
+pub fn all() -> &'static [Video] {
+    #[cfg(test)]
+    return TEST_CURRENT.with(|c| c.get()).unwrap_or_else(builtin);
+    #[cfg(not(test))]
+    CURRENT
+        .read()
+        .ok()
+        .and_then(|current| *current)
+        .unwrap_or_else(builtin)
+}
+/// Replace the uploaded clips. The previous slice stays valid: uploads are
+/// rare, so the few kilobytes each swap leaves behind are not reclaimed.
+pub fn set_custom(custom: Vec<Video>) {
+    let mut next = builtin().to_vec();
+    next.extend(custom);
+    let leaked: &'static [Video] = Box::leak(next.into_boxed_slice());
+    #[cfg(test)]
+    TEST_CURRENT.with(|c| c.set(Some(leaked)));
+    #[cfg(not(test))]
+    if let Ok(mut current) = CURRENT.write() {
+        *current = Some(leaked);
+    }
+}
 pub fn source_bit(filter_index: usize) -> Option<u8> {
     match filter_index {
         0 => Some(ALL_SOURCES),
-        1..=4 => Some(1 << (filter_index - 1)),
+        1..=5 => Some(1 << (filter_index - 1)),
         _ => None,
     }
 }
@@ -49,6 +121,7 @@ pub fn filtered(mask: u8) -> Vec<usize> {
                 "Amazon" => 2,
                 "Community (Aerial)" => 4,
                 "Community (RobinFrcd)" => 8,
+                CUSTOM_SOURCE => 16,
                 _ => 0,
             };
             (mask & bit != 0).then_some(i)

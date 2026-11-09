@@ -17,14 +17,15 @@ Free and open source (MIT). Fork it, change it, ship it.
 **Home**
 
 - Favorite apps row and "stacks": rows of content from Jellyfin, Moonlight and more, each capped at 20 cards with a **View Library** page behind it.
-- Live video wallpapers: Apple and Amazon aerials, played in hardware. Pick whole collections or single clips.
+- Live video wallpapers, on by default: Apple and Amazon aerials played in hardware. Pick whole collections or single clips.
+- Your own video wallpapers: **Settings › Wallpaper › Upload Videos** shows a QR code. Open it on a phone or computer on the same network and pick MP4/MOV files (H.264 or HEVC). They play from the TV's storage, and **Only My Videos** rotates just your uploads.
 - Frosted-glass UI with one accent gradient, adjustable colors, heading and text fonts, and UI resolution (Auto / 4K / 1440p / 1080p).
-- A headline that comments on the weather, plus a clock and date.
+- A tech-themed headline that comments on the weather ("Thermal throttling: off."), plus a clock and date.
+- LG's own apps (Multi View, Gallery, Home Hub, Camera, Web Browser, LG Link, Sports, Memory Care and the like) start hidden. Live TV stays. Unhide any of them from **Apps › Hidden**.
 
 **Widgets**
 
 - Weather (Open-Meteo, no API key), with hourly and 10-day forecasts.
-- Crypto prices with charts (Binance, Coinbase, Kraken and others; public endpoints only).
 - HDMI input preview and Home Assistant status line.
 - Small, medium, large and text-line sizes, laid out on a grid.
 
@@ -103,7 +104,6 @@ Free and open source (MIT). Fork it, change it, ship it.
 <table>
   <tr>
     <td width="50%"><img src="docs/screenshots/weather.jpg" alt="Weather"></td>
-    <td width="50%"><img src="docs/screenshots/crypto.jpg" alt="Crypto"></td>
   </tr>
 </table>
 
@@ -152,6 +152,26 @@ Luma runs as a normal app without root. On a rooted TV (Homebrew Channel, elevat
 | Detect whether an HDMI input has a signal                  | —            | ✓               |
 
 Without root the Root features section is hidden, and Luma never tries to change system files.
+
+### Autostart from the command line
+
+Opens Luma 25 seconds after a full cold boot, as a regular app (the Home button is not remapped).
+Run in the TV's root SSH shell:
+
+```sh
+sh /media/developer/apps/usr/palm/applications/com.denisefremov.luma/autostart.sh enable
+```
+
+Check or undo it, and disable it before uninstalling Luma:
+
+```sh
+sh /media/developer/apps/usr/palm/applications/com.denisefremov.luma/autostart.sh status
+sh /media/developer/apps/usr/palm/applications/com.denisefremov.luma/autostart.sh disable
+```
+
+It installs `/var/lib/webosbrew/init.d/65-luma`, which Homebrew Channel runs at boot, and logs to
+`/tmp/luma-boot.log`. **Open Luma when the TV turns on** above also covers waking from Quick Start+;
+you only need one of the two.
 
 ## Install
 
@@ -207,7 +227,7 @@ Tests: `pnpm test`. Lint and format: `pnpm check`, `pnpm format`. More in [devel
 | Player              | Separate web app: HTML5 video, HLS, vanilla JS                                                   |
 | TV integration      | Luna service bus, Homebrew Channel elevated service                                              |
 | Build tooling       | pnpm, Node, `sharp`, `@webos-tools/cli`, Nix flake, oxlint / oxfmt, Changesets                   |
-| Data sources        | Open-Meteo, Jellyfin, Plex, Home Assistant, Steam store artwork, public crypto exchange APIs     |
+| Data sources        | Open-Meteo, Jellyfin, Plex, Home Assistant, Steam store artwork                                  |
 
 ## Privacy
 

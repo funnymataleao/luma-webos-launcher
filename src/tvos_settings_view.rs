@@ -406,12 +406,7 @@ fn wallpaper_preview(
         LEFT_W - 2. * S32,
         357.75,
     );
-    out.image(
-        assets.path(format!("video-stills/{id}.jpg")),
-        image,
-        MEDIA_RADIUS,
-        false,
-    );
+    out.image(assets.video_still(id), image, MEDIA_RADIUS, false);
     let label_y = if h >= 700. {
         y + h - S32 - 44. - 6. - 40.
     } else {
@@ -572,7 +567,7 @@ fn root(out: &mut Scene, state: &State, assets: &Assets) {
     }
 }
 fn wallpaper(out: &mut Scene, state: &State, assets: &Assets) {
-    let h = 640.;
+    let h = 690.;
     panels(out, h);
     let selected = crate::video_catalog::selected(&state.preferences.video_excluded);
     let items = [
@@ -607,6 +602,19 @@ fn wallpaper(out: &mut Scene, state: &State, assets: &Assets) {
             false,
         ),
         (Target::VideoNext, "Play Next Clip", String::new(), true),
+        (
+            Target::WallpaperMenu(3),
+            "Upload Videos",
+            match crate::video_catalog::all()
+                .iter()
+                .filter(|v| v.is_custom())
+                .count()
+            {
+                0 => String::new(),
+                n => format!("{n} uploaded"),
+            },
+            true,
+        ),
     ];
     for (i, (target, name, value, arrow)) in items.into_iter().enumerate() {
         cell(
@@ -625,7 +633,7 @@ fn wallpaper(out: &mut Scene, state: &State, assets: &Assets) {
             },
         );
     }
-    let help_y = TOP + S24 + 4. * STEP + S16;
+    let help_y = TOP + S24 + 5. * STEP + S16;
     out.shape(
         Rect::new(RIGHT + S24, help_y, WIDTH - S48, 120.),
         CELL_RADIUS,
@@ -650,7 +658,7 @@ fn wallpaper(out: &mut Scene, state: &State, assets: &Assets) {
     let thumb_h = thumb_w * 9. / 16.;
     for (pos, index) in selected.iter().take(6).enumerate() {
         out.image(
-            assets.path(format!("video-thumbnails/{index}.jpg")),
+            assets.video_thumbnail(*index),
             Rect::new(
                 LEFT + S24 + (pos % 3) as f32 * (thumb_w + S8),
                 TOP + S24 + BACK_SIZE + S16 + (pos / 3) as f32 * (thumb_h + S16),
@@ -771,10 +779,7 @@ fn videos(out: &mut Scene, state: &State, assets: &Assets) {
                 out.shape(rect, CELL_RADIUS, c(0xffffff, 0.07));
                 let ink = focus_fill(out, state, rect, CELL_RADIUS, t);
                 out.image(
-                    assets.path(format!(
-                        "video-thumbnails/{}.jpg",
-                        items.first().copied().unwrap_or(0)
-                    )),
+                    assets.video_thumbnail(items.first().copied().unwrap_or(0)),
                     Rect::new(rect.x + S24, rect.y + 13., 96., 54.),
                     10.,
                     false,
@@ -2176,6 +2181,88 @@ fn plex_link(out: &mut Scene, state: &State, assets: &Assets) {
     );
 }
 
+/// Settings › Wallpaper › Upload Videos: QR left, address and status right.
+fn video_upload(out: &mut Scene, state: &State, assets: &Assets) {
+    panels(out, MAX_HEIGHT);
+    let start = out.draw.len();
+    sign_in_qr(
+        out,
+        assets,
+        &state.video_upload_qr,
+        if state.video_upload_qr.is_empty() {
+            "Starting…"
+        } else {
+            "Scan with your phone"
+        },
+        "Pick videos there to send them to the TV",
+    );
+    out.settings_sidebar_range = start..out.draw.len();
+
+    let x = RIGHT + S32;
+    let w = WIDTH - 2. * S32;
+    let mut y = TOP + S48;
+    out.text(
+        "Your own video wallpapers",
+        Rect::new(x, y, w, 64.),
+        TextStyle::new(44.)
+            .display(true)
+            .weight(600)
+            .tracking(-0.01),
+        WHITE,
+        false,
+    );
+    y += 64. + S24;
+    out.text(
+        "Scan the code, or open this address in a browser on\na phone or computer on the same network:",
+        Rect::new(x, y, w, 80.),
+        text(25., 500, 0.).leading(1.5),
+        c(0xffffff, 0.78),
+        false,
+    );
+    y += 80. + S16;
+    let link = state.video_upload_link.as_deref().unwrap_or("…");
+    let link_style = text(29., 650, 0.);
+    out.shape(Rect::new(x, y, w, 72.), CELL_RADIUS, c(0xffffff, 0.085));
+    out.text(
+        trunc(assets, link, link_style, w - 2. * S24),
+        Rect::new(x + S24, y + 16., w - 2. * S24, 44.),
+        link_style,
+        WHITE,
+        false,
+    );
+    y += 72. + S24;
+    let uploaded = crate::video_catalog::all()
+        .iter()
+        .filter(|v| v.is_custom())
+        .count();
+    out.text(
+        format!(
+            "MP4 or MOV, H.264 or HEVC. 1080p H.264 plays best.\n{} on this TV · up to {}",
+            match uploaded {
+                1 => "1 video".to_owned(),
+                n => format!("{n} videos"),
+            },
+            crate::custom_videos::MAX_VIDEOS
+        ),
+        Rect::new(x, y, w, 80.),
+        text(25., 500, 0.).leading(1.5),
+        c(0xffffff, 0.68),
+        false,
+    );
+    y += 80. + S24;
+    if let Some((status, error)) = state.video_upload_status.as_ref() {
+        sign_in_status(out, state, assets, status, *error, y);
+    }
+    sign_in_buttons(
+        out,
+        state,
+        [
+            (Target::VideoUploadOnlyMine, "Only My Videos"),
+            (Target::VideoUploadDone, "Done"),
+        ],
+    );
+}
+
 fn stack_config(out: &mut Scene, state: &State, assets: &Assets, i: usize) {
     let Some(stack) = state.preferences.stacks.get(i) else {
         return;
@@ -2419,7 +2506,7 @@ fn category(out: &mut Scene, state: &State, assets: &Assets, group: usize) {
         if t > 0. {
             out.shadow(r, MEDIA_RADIUS, S24, S8, t * 0.35);
         }
-        let path = assets.path(format!("video-thumbnails/{index}.jpg"));
+        let path = assets.video_thumbnail(*index);
         if selected {
             out.image(path, r, MEDIA_RADIUS, false);
         } else {
@@ -2476,6 +2563,7 @@ pub(super) fn render(out: &mut Scene, state: &State, assets: &Assets) {
         SettingsLevel::MoonlightPin => moonlight_pin(out, state, assets),
         SettingsLevel::JellyfinLink => jellyfin_link(out, state, assets),
         SettingsLevel::PlexLink => plex_link(out, state, assets),
+        SettingsLevel::WallpaperUpload => video_upload(out, state, assets),
         SettingsLevel::StackConfig(i) => stack_config(out, state, assets, i),
         SettingsLevel::StackCollection(i) => stack_choices(out, state, assets, i, 0),
         SettingsLevel::StackShape(i) => stack_choices(out, state, assets, i, 2),

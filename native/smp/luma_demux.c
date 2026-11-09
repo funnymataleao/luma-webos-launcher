@@ -1,5 +1,5 @@
-// Lightweight online demux. The original H.264 bitstream is passed through,
-// without decoding, scaling, re-encoding, or storing any video file.
+// Lightweight demux for online clips and uploaded files. The original H.264
+// bitstream is passed through, without decoding, scaling or re-encoding.
 // Stdout protocol: "LVID" magic once; then little-endian length u32,
 // LVID (HEVC, unchanged): length u32, decode/display clock ns u64, payload.
  // LVI2 (H.264): length u32, decode scheduling ns u64, actual display PTS
@@ -30,22 +30,28 @@ static int write_header(uint32_t length,uint64_t pts,uint64_t presentation,bool 
     return 1;
 }
 int main(int argc,char **argv){
-    if(argc!=3 || (strcmp(argv[1],"h264") && strcmp(argv[1],"h265")) || strncmp(argv[2],"https://",8)!=0 || strlen(argv[2])>2048){
-        fprintf(stderr,"Usage: luma-demux h264|h265 HTTPS_VIDEO_URL\n");return 2;
+    // An HTTPS stream from the catalog, or an uploaded clip on local storage
+    // (an absolute path without parent-directory segments).
+    bool local=argc==3 && argv[2][0]=='/' && !strstr(argv[2],"/../");
+    if(argc!=3 || (strcmp(argv[1],"h264") && strcmp(argv[1],"h265"))
+        || (!local && strncmp(argv[2],"https://",8)!=0) || strlen(argv[2])>2048){
+        fprintf(stderr,"Usage: luma-demux h264|h265 HTTPS_VIDEO_URL|/ABSOLUTE/FILE.mp4\n");return 2;
     }
     signal(SIGTERM,sigterm);signal(SIGPIPE,SIG_IGN);
     gst_init(NULL,NULL);
     GError *error=NULL;
-    const char *desc=strcmp(argv[1],"h265")==0?
-        "souphttpsrc name=source ! qtdemux name=d d.video_0 ! queue max-size-buffers=6 ! "
+    const char *tail=strcmp(argv[1],"h265")==0?
+        " name=source ! qtdemux name=d d.video_0 ! queue max-size-buffers=6 ! "
         "h265parse config-interval=-1 ! video/x-h265,stream-format=byte-stream,alignment=au ! "
         "appsink name=output sync=false emit-signals=false max-buffers=6 drop=false" :
 
-        "souphttpsrc name=source ! qtdemux name=d d.video_0 ! queue max-size-buffers=6 ! "
+        " name=source ! qtdemux name=d d.video_0 ! queue max-size-buffers=6 ! "
         "h264parse config-interval=-1 ! "
         "video/x-h264,stream-format=byte-stream,alignment=au ! "
         "appsink name=output sync=false emit-signals=false max-buffers=6 drop=false";
+    gchar *desc=g_strconcat(local?"filesrc":"souphttpsrc",tail,NULL);
     GstElement *pipe=gst_parse_launch(desc,&error);
+    g_free(desc);
     if(!pipe){fprintf(stderr,"Parse failed: %s\n",error?error->message:"unknown");return 3;}
     GstElement *src=gst_bin_get_by_name(GST_BIN(pipe),"source");
     GstElement *sink=gst_bin_get_by_name(GST_BIN(pipe),"output");

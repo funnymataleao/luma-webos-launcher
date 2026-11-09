@@ -310,10 +310,7 @@ impl Player {
         let entry = crate::video_catalog::all()
             .get(index)
             .ok_or("Invalid video")?;
-        if !entry.url.starts_with("https://")
-            || entry.url.len() > 2048
-            || entry.url.contains(['\n', '\r', '\0'])
-        {
+        if !playable_source(&entry.url) {
             return Err("Invalid streaming URL".into());
         }
         let exe = std::env::current_exe().map_err(|e| e.to_string())?;
@@ -327,16 +324,12 @@ impl Player {
             .open("/media/developer/com.denisefremov.luma/luma-demux.log")
             .ok();
         let mut cmd = Command::new(demux);
-        cmd.arg(if entry.source == "Amazon" {
-            "h265"
-        } else {
-            "h264"
-        })
-        .arg(&entry.url)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(log.map_or_else(Stdio::null, Stdio::from));
-        if entry.source != "Amazon" && H264Tuning::load().fixed_30fps {
+        cmd.arg(if entry.is_hevc() { "h265" } else { "h264" })
+            .arg(&entry.url)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(log.map_or_else(Stdio::null, Stdio::from));
+        if !entry.is_hevc() && H264Tuning::load().fixed_30fps {
             cmd.env("LUMA_H264_FIXED_30", "1");
         }
         unsafe {
@@ -373,14 +366,14 @@ impl Player {
         if self.prepared.is_some() {
             return;
         }
-        // Amazon HEVC: no speculative requests or timing changes.
-        if crate::video_catalog::all()[index].source == "Amazon" {
+        // HEVC (Amazon, some uploads): no speculative requests or timing changes.
+        if crate::video_catalog::all()[index].is_hevc() {
             return;
         }
         let Some((next, _)) = next else {
             return;
         };
-        if next == index || crate::video_catalog::all()[next].source == "Amazon" {
+        if next == index || crate::video_catalog::all()[next].is_hevc() {
             return;
         }
         let (Some(started), Some(duration)) = (
@@ -416,16 +409,11 @@ impl Player {
         let entry = crate::video_catalog::all()
             .get(index)
             .ok_or("Invalid video")?;
-        let url = &entry.url;
-        if !url.starts_with("https://") || url.len() > 2048 || url.contains(['\n', '\r', '\0']) {
+        if !playable_source(&entry.url) {
             return Err("Invalid streaming URL".into());
         }
         let app = CString::new("com.denisefremov.luma").unwrap();
-        let codec = if entry.source == "Amazon" {
-            "H265"
-        } else {
-            "H264"
-        };
+        let codec = if entry.is_hevc() { "H265" } else { "H264" };
         let codec_c = CString::new(codec).unwrap();
         let tuning = if codec == "H264" {
             H264Tuning::load()
@@ -701,6 +689,12 @@ impl Drop for Player {
         self.stop();
         unsafe { libc::dlclose(self.lib) };
     }
+}
+/// An HTTPS stream from the catalog, or an uploaded clip on local storage.
+fn playable_source(url: &str) -> bool {
+    url.len() <= 2048
+        && !url.contains(['\n', '\r', '\0'])
+        && (url.starts_with("https://") || crate::custom_videos::is_upload_path(url))
 }
 fn dlerror() -> String {
     unsafe {

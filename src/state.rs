@@ -127,6 +127,9 @@ pub enum Target {
     JellyfinCancel,
     PlexNewCode,
     PlexCancel,
+    /// Settings › Wallpaper › Upload Videos: rotate only uploaded clips.
+    VideoUploadOnlyMine,
+    VideoUploadDone,
     GameClose,
     GamePlay,
     GameWake,
@@ -238,6 +241,8 @@ pub enum SettingsLevel {
     WallpaperPhotos,
     WallpaperVideos,
     WallpaperCategory(usize),
+    /// Upload video wallpapers from a phone or computer.
+    WallpaperUpload,
     HeadingFonts,
     TextFonts,
     UiResolution,
@@ -356,6 +361,9 @@ pub enum Effect {
     /// Get a plex.tv PIN and wait for approval.
     PlexLink,
     PlexCancel,
+    /// Serve the video upload page on the LAN, or stop serving it.
+    VideoUploadStart,
+    VideoUploadStop,
     /// Fetch the Plex libraries offered as row contents.
     PlexViews,
     MoonlightProbe(String),
@@ -463,6 +471,10 @@ pub struct State {
     pub plex_error: bool,
     /// Plex sign-in page with the PIN filled in.
     pub plex_qr: Vec<Vec<bool>>,
+    /// Settings › Wallpaper › Upload Videos: QR, address and last result.
+    pub video_upload_qr: Vec<Vec<bool>>,
+    pub video_upload_link: Option<String>,
+    pub video_upload_status: Option<(String, bool)>,
     /// Libraries of the Plex server: ("section:<key>", title).
     pub plex_views: Vec<(String, String)>,
     /// Typed media X site before it is saved.
@@ -672,6 +684,9 @@ impl State {
             plex_status: None,
             plex_error: false,
             plex_qr: vec![],
+            video_upload_qr: vec![],
+            video_upload_link: None,
+            video_upload_status: None,
             plex_views: vec![],
             moonlight_hosts: Vec::new(),
             moonlight_retry_host: None,
@@ -806,6 +821,89 @@ impl State {
                 ));
         }
         self.video_selected_count_cache.get()
+    }
+
+    /// Rebuild the cached video lists after uploaded clips changed.
+    pub fn refresh_video_catalog(&mut self) {
+        let catalog = crate::video_catalog::all();
+        self.video_filter_items = (0..crate::video_catalog::FILTERS.len())
+            .map(crate::video_catalog::display_filter)
+            .collect();
+        self.video_group_items = (0..crate::video_catalog::FILTERS.len())
+            .map(crate::video_catalog::groups)
+            .collect();
+        self.preferences
+            .video_excluded
+            .retain(|id| catalog.iter().any(|v| &v.id == id));
+        if crate::video_catalog::selected_count(&self.preferences.video_excluded) == 0 {
+            self.preferences.video_excluded.clear();
+        }
+        self.video_selection_version
+            .set(crate::video_catalog::selection_version(
+                &self.preferences.video_excluded,
+            ));
+        self.video_selected_count_cache
+            .set(crate::video_catalog::selected_count(
+                &self.preferences.video_excluded,
+            ));
+        if self.preferences.video_index >= catalog.len() {
+            self.preferences.video_index =
+                crate::video_catalog::selected(&self.preferences.video_excluded)
+                    .first()
+                    .copied()
+                    .unwrap_or(0);
+        }
+        self.dirty = true;
+    }
+
+    /// A clip finished uploading: switch to video wallpapers and play it now.
+    pub fn video_uploaded(&mut self, index: usize, name: &str) -> Vec<Effect> {
+        self.refresh_video_catalog();
+        if let Some(video) = crate::video_catalog::all().get(index) {
+            self.preferences.video_excluded.remove(&video.id);
+        }
+        if self.preferences.background != "video" {
+            self.photo_background_backup = self.preferences.background.clone();
+            self.preferences.background = "video".into();
+        }
+        self.preferences.video_index = index;
+        self.video_upload_status = Some((format!("Added “{name}”. It is playing now."), false));
+        self.dirty = true;
+        vec![Effect::Save]
+    }
+
+    /// Rotate only uploaded clips (Upload Videos › Only My Videos).
+    fn only_uploaded_videos(&mut self) -> Vec<Effect> {
+        let catalog = crate::video_catalog::all();
+        let uploaded: Vec<usize> = (0..catalog.len())
+            .filter(|&i| catalog[i].is_custom())
+            .collect();
+        let Some(&first) = uploaded.first() else {
+            self.video_upload_status = Some(("Upload a video first.".into(), true));
+            self.dirty = true;
+            return vec![];
+        };
+        self.preferences.video_excluded = catalog
+            .iter()
+            .filter(|v| !v.is_custom())
+            .map(|v| v.id.clone())
+            .collect();
+        self.refresh_video_catalog();
+        if !uploaded.contains(&self.preferences.video_index) {
+            self.preferences.video_index = first;
+        }
+        if self.preferences.background != "video" {
+            self.photo_background_backup = self.preferences.background.clone();
+            self.preferences.background = "video".into();
+        }
+        self.video_upload_status = Some((
+            match uploaded.len() {
+                1 => "Only your video plays now.".to_owned(),
+                n => format!("Only your {n} videos play now."),
+            },
+            false,
+        ));
+        vec![Effect::Save]
     }
 
     pub fn video_items_for_filter(&self, filter: usize) -> &[usize] {
@@ -1752,6 +1850,7 @@ impl State {
                 SettingsLevel::MoonlightPin => Target::MoonlightCancelButton,
                 SettingsLevel::JellyfinLink => Target::JellyfinServer(0),
                 SettingsLevel::PlexLink => Target::PlexCancel,
+                SettingsLevel::WallpaperUpload => Target::VideoUploadDone,
                 SettingsLevel::StackConfig(_) => Target::StackOpt(0),
                 SettingsLevel::StackCollection(i) => Target::StackPick(
                     self.preferences
@@ -3754,7 +3853,10 @@ impl State {
                 }
                 return vec![Effect::JellyfinDiscover];
             }
-            Target::JellyfinCancel | Target::PlexCancel => return self.back(),
+            Target::JellyfinCancel | Target::PlexCancel | Target::VideoUploadDone => {
+                return self.back();
+            }
+            Target::VideoUploadOnlyMine => return self.only_uploaded_videos(),
             Target::PlexNewCode => {
                 self.plex_code = None;
                 self.plex_error = false;
@@ -4488,6 +4590,13 @@ impl State {
                 ),
                 1 => self.settings_push(SettingsLevel::WallpaperPhotos, Target::Background(0)),
                 2 => self.settings_push(SettingsLevel::WallpaperVideos, Target::VideoGroup(0)),
+                3 => {
+                    self.video_upload_qr.clear();
+                    self.video_upload_link = None;
+                    self.video_upload_status = None;
+                    self.settings_push(SettingsLevel::WallpaperUpload, Target::VideoUploadDone);
+                    return vec![Effect::VideoUploadStart];
+                }
                 _ => {}
             },
             Target::Setting(index) => {
@@ -4925,6 +5034,12 @@ impl State {
                 }
                 SettingsLevel::WallpaperPhotos => {
                     self.settings_pop(SettingsLevel::Section, Target::WallpaperMenu(1))
+                }
+                SettingsLevel::WallpaperUpload => {
+                    self.settings_pop(SettingsLevel::Section, Target::WallpaperMenu(3));
+                    self.video_upload_qr.clear();
+                    self.video_upload_link = None;
+                    return vec![Effect::VideoUploadStop];
                 }
                 SettingsLevel::WallpaperType => {
                     self.settings_pop(SettingsLevel::Section, Target::WallpaperMenu(0))

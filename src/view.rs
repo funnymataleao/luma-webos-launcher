@@ -84,6 +84,23 @@ impl Assets {
     fn path(&self, path: impl AsRef<Path>) -> String {
         self.root.join(path).to_string_lossy().into_owned()
     }
+    /// Small picture of a wallpaper clip. Uploaded clips use the preview their
+    /// upload page made, or a bundled gradient when it could not make one.
+    pub fn video_thumbnail(&self, index: usize) -> String {
+        match crate::custom_videos::image(index, false) {
+            Some(path) if !path.is_empty() => path,
+            Some(_) => self.path("thumbnails/midnight.jpg"),
+            None => self.path(format!("video-thumbnails/{index}.jpg")),
+        }
+    }
+    /// Full-resolution first frame of a wallpaper clip, shown while it loads.
+    pub fn video_still(&self, index: usize) -> String {
+        match crate::custom_videos::image(index, true) {
+            Some(path) if !path.is_empty() => path,
+            Some(_) => self.path("wallpapers/midnight.jpg"),
+            None => self.path(format!("video-stills/{index}.jpg")),
+        }
+    }
 
     /// Exact glyph metrics, matched to the renderer's live font selection.
     fn glyph_advance(&self, c: char, style: TextStyle) -> f32 {
@@ -619,10 +636,7 @@ pub fn navigation_for(assets: &Assets, language: Language, show_smart: bool) -> 
 
 /// Full-resolution first frame of a wallpaper clip, shown while it loads.
 pub fn video_still_path(assets: &Assets, index: usize) -> String {
-    assets.path(format!(
-        "video-stills/{}.jpg",
-        index.min(crate::video_catalog::all().len() - 1)
-    ))
+    assets.video_still(index.min(crate::video_catalog::all().len() - 1))
 }
 
 pub fn scene_with_pill(
@@ -3517,7 +3531,7 @@ fn background_settings(out: &mut Scene, state: &State, assets: &Assets) {
                 out.shadow(lift_rect, 15., 15., 5., 0.33);
             }
             out.shape(lift_rect, 15., c(0x1c1d1e, 1.));
-            let path = assets.path(format!("video-thumbnails/{index}.jpg"));
+            let path = assets.video_thumbnail(*index);
             if std::path::Path::new(&path).is_file() {
                 if chosen {
                     out.image(path, lift_rect, 15., false);
